@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupportIQ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e5e5e5;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 48px 16px 80px;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin-top: 8px;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .search-row input {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      color: #e5e5e5;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-row input::placeholder { color: #555; }
+    .search-row input:focus { border-color: rgba(250,204,21,0.4); }
+
+    .search-row button {
+      background: #facc15;
+      color: #0a0a0a;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 22px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+
+    .search-row button:hover { opacity: 0.88; }
+    .search-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 20px;
+      min-height: 20px;
+    }
+
+    .answer-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #facc15;
+      margin-bottom: 12px;
+    }
+
+    .answer-text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #e5e5e5;
+    }
+
+    .latency {
+      margin-top: 14px;
+      font-size: 0.78rem;
+      color: #444;
+    }
+
+    .sources-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 12px;
+    }
+
+    .sources-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 48px;
+    }
+
+    .source-chip {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .type-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+
+    .badge-doc { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .badge-ticket { background: rgba(251,146,60,0.15); color: #fb923c; }
+
+    .source-title {
+      font-size: 0.875rem;
+      color: #ccc;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-score {
+      font-size: 0.78rem;
+      color: #555;
+      flex-shrink: 0;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: #facc15;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result { display: none; }
+
+    /* Docs section */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      margin: 8px 0 40px;
+    }
+
+    .docs-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .docs-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .docs-count {
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    .docs-filter {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      color: #e5e5e5;
+      outline: none;
+      margin-bottom: 16px;
+      transition: border-color 0.15s;
+    }
+
+    .docs-filter::placeholder { color: #444; }
+    .docs-filter:focus { border-color: rgba(250,204,21,0.3); }
+
+    .docs-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .doc-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .doc-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e5e5e5;
+      flex: 1;
+    }
+
+    .doc-category {
+      font-size: 0.7rem;
+      color: #666;
+      background: rgba(255,255,255,0.05);
+      border-radius: 5px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .doc-card {
+      cursor: pointer;
+    }
+
+    .doc-preview {
+      font-size: 0.82rem;
+      color: #555;
+      line-height: 1.5;
+      overflow: hidden;
+      max-height: 3em;
+      transition: max-height 0.3s cubic-bezier(.22,1,.36,1), color 0.2s;
+    }
+
+    .doc-card.expanded .doc-preview {
+      max-height: 600px;
+      color: #999;
+    }
+
+    .doc-card.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SupportIQ</h1>
+      <p>Search your internal knowledge base — docs, past tickets, and resolutions.</p>
+    </header>
+
+    <div class="search-row">
+      <input type="text" id="queryInput" placeholder="e.g. How do I reset a locked account?" autocomplete="off" />
+      <button id="askBtn">Semantic Search</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div id="result">
+      <div class="answer-card">
+        <div class="section-label">Answer</div>
+        <div class="answer-text" id="answerText"></div>
+        <div class="latency" id="latencyText"></div>
+      </div>
+
+      <div class="sources-label">Sources used</div>
+      <div class="sources-grid" id="sourcesGrid"></div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="docs-header">
+      <h2>Knowledge Base</h2>
+      <span class="docs-count" id="docsCount"></span>
+    </div>
+
+    <input type="text" class="docs-filter" id="docsFilter" placeholder="Filter docs..." autocomplete="off" />
+
+    <div class="docs-grid" id="docsGrid"></div>
+  </div>
+
+  <script>
+    const input = document.getElementById('queryInput');
+    const btn = document.getElementById('askBtn');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    const answerText = document.getElementById('answerText');
+    const latencyText = document.getElementById('latencyText');
+    const sourcesGrid = document.getElementById('sourcesGrid');
+    const docsGrid = document.getElementById('docsGrid');
+    const docsFilter = document.getElementById('docsFilter');
+    const docsCount = document.getElementById('docsCount');
+
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^### (.+)$/gm, '<strong style="display:block;margin-top:12px;color:#fff">$1</strong>')
+        .replace(/^## (.+)$/gm, '<strong style="display:block;margin-top:16px;font-size:1rem;color:#fff">$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    async function ask() {
+      const q = input.value.trim();
+      if (!q) return;
+
+      btn.disabled = true;
+      result.style.display = 'none';
+      status.innerHTML = '<span class="spinner"></span>Searching...';
+
+      try {
+        const res = await fetch('/ragproject/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, top_k: 5 }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          status.textContent = 'Error: ' + (err.detail || res.statusText);
+          return;
+        }
+
+        const data = await res.json();
+
+        answerText.innerHTML = renderMarkdown(data.answer);
+        latencyText.textContent = `Retrieved ${data.chunks_retrieved} chunks in ${data.latency_ms}ms`;
+
+        sourcesGrid.innerHTML = '';
+        (data.sources || []).forEach(s => {
+          const chip = document.createElement('div');
+          chip.className = 'source-chip';
+          const badgeClass = s.source_type === 'doc' ? 'badge-doc' : 'badge-ticket';
+          chip.innerHTML = `
+            <span class="type-badge ${badgeClass}">${s.source_type}</span>
+            <span class="source-title">[${s.index}] ${s.title}</span>
+            <span class="source-score">${(s.score * 100).toFixed(1)}%</span>
+          `;
+          sourcesGrid.appendChild(chip);
+        });
+
+        status.textContent = '';
+        result.style.display = 'block';
+        result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        status.textContent = 'Request failed: ' + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadDocs() {
+      try {
+        const res = await fetch('/ragproject/articles');
+        const docs = await res.json();
+
+        docsCount.textContent = `${docs.length} docs`;
+
+        docs.forEach(doc => {
+          const card = document.createElement('div');
+          card.className = 'doc-card';
+          card.dataset.title = doc.title.toLowerCase();
+          card.dataset.category = doc.category.toLowerCase();
+          card.innerHTML = `
+            <div class="doc-card-top">
+              <span class="type-badge badge-doc">doc</span>
+              <span class="doc-title">${doc.title}</span>
+              <span class="doc-category">${doc.category}</span>
+            </div>
+            <div class="doc-preview">${doc.preview}</div>
+          `;
+          card.querySelector('.doc-preview').dataset.full = doc.content;
+          card.addEventListener('click', () => {
+            const expanded = card.classList.toggle('expanded');
+            const preview = card.querySelector('.doc-preview');
+            preview.textContent = expanded ? preview.dataset.full : doc.preview;
+          });
+          docsGrid.appendChild(card);
+        });
+      } catch (e) {
+        docsGrid.innerHTML = '<p style="color:#555;font-size:0.85rem">Could not load docs.</p>';
+      }
+    }
+
+    docsFilter.addEventListener('input', () => {
+      const q = docsFilter.value.toLowerCase();
+      let visible = 0;
+      document.querySelectorAll('.doc-card').forEach(card => {
+        const match = card.dataset.title.includes(q) || card.dataset.category.includes(q);
+        card.classList.toggle('hidden', !match);
+        if (match) visible++;
+      });
+      docsCount.textContent = `${visible} docs`;
+    });
+
+    btn.addEventListener('click', ask);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+
+    loadDocs();
+  </script>
+</body>
+</html>

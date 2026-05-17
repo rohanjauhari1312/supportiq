@@ -1,0 +1,1323 @@
+{
+  "docs": [
+    {
+      "id": "doc-001",
+      "title": "Password Reset Flow",
+      "category": "Authentication",
+      "content": "## Password Reset Flow\n\nResetting your password is a self-service action available from the login page. Click \"Forgot password?\" and enter the email address associated with your account. You will receive a reset link within a few minutes. Check your spam folder if it does not arrive \u2014 some corporate email filters flag automated messages.\n\nThe reset link is valid for 24 hours. Clicking an expired link will show an error asking you to request a new one. Each new request invalidates any previously issued links, so if you requested multiple times, only the most recent link will work.\n\nAfter clicking the link, you will be taken to a page where you must enter your new password twice. Passwords must be at least 12 characters and include at least one uppercase letter, one number, and one special character. You cannot reuse your last five passwords.\n\n### Locked Account Edge Cases\n\nAfter five consecutive failed login attempts, the account is locked for 30 minutes as a security measure. During this window, even a correct password will be rejected. You have two options: wait out the lockout period or contact support to have the lock manually cleared.\n\nIf your account was locked and you also need to reset your password, do both steps in the right order: first have support clear the lock, then initiate the password reset flow. Starting the reset while the account is locked will result in the reset email being sent but the new password failing on first use.\n\nOrganization admins can also reset passwords on behalf of members from the team management panel. This generates a one-time link delivered to the member's email. The member is required to change the password again on first login when this method is used."
+    },
+    {
+      "id": "doc-002",
+      "title": "Two-Factor Authentication Setup",
+      "category": "Authentication",
+      "content": "## Two-Factor Authentication Setup\n\nTwo-factor authentication (2FA) adds a second verification step on top of your password. We support time-based one-time passwords (TOTP) via any standard authenticator app \u2014 Google Authenticator, Authy, 1Password, and Bitwarden all work correctly.\n\n### Enabling 2FA\n\nGo to Account Settings > Security > Two-Factor Authentication and click \"Enable\". You will see a QR code and a text-based secret. Open your authenticator app, tap the option to add a new account, and scan the QR code. The app will immediately start generating 6-digit codes that rotate every 30 seconds. Enter the current code in the confirmation field to complete setup.\n\n### Backup Codes\n\nImmediately after enabling 2FA, you are shown ten single-use backup codes. Download or print these and store them somewhere secure and offline. Each code can only be used once. If you exhaust your backup codes, go to Security Settings and generate a new set, which invalidates the previous set.\n\nBackup codes are the only way to access your account if you lose access to your authenticator app and cannot restore from a cloud backup. Support cannot bypass 2FA without identity verification via your organization admin or a government-issued ID.\n\n### Disabling 2FA\n\nTo turn off 2FA, go to Account Settings > Security and click \"Disable two-factor authentication\". You must authenticate with your current TOTP code or a backup code before the change takes effect. If your organization has enforced 2FA at the admin level, you will not see the option to disable it \u2014 contact your admin instead.\n\n### Switching Authenticator Apps\n\nIf you are moving to a new phone or a different app, do not simply scan the existing QR code in the new app \u2014 that code may no longer be shown. Instead, disable 2FA entirely (using your old device or a backup code), then re-enable it and complete the setup on the new device."
+    },
+    {
+      "id": "doc-003",
+      "title": "API Authentication",
+      "category": "API",
+      "content": "## API Authentication\n\nThe API supports two authentication mechanisms: API keys and OAuth 2.0. Which one you should use depends on your use case.\n\n### API Keys\n\nAPI keys are the simplest option and are suitable for server-side integrations where the key can be stored securely. Generate a key from the Developer Settings page. Keys are shown in full only at creation time \u2014 after you close the dialog, only the last four characters are visible. If you lose a key, revoke it and generate a new one.\n\nInclude the key in every request using the `Authorization` header: `Authorization: Bearer YOUR_API_KEY`. Never embed API keys in client-side JavaScript or mobile app bundles, as these are easily extracted.\n\n### Key Rotation\n\nRotate API keys regularly and always rotate immediately if you suspect exposure. The recommended approach is to generate a new key, update your integration to use it, verify the integration is working, then revoke the old key. Both keys can be active simultaneously during the transition period to avoid downtime.\n\n### OAuth 2.0\n\nOAuth 2.0 is required when your application acts on behalf of individual users. We support the authorization code flow with PKCE. Register your application in Developer Settings to get a client ID and secret. During the authorization flow, the user is redirected to our consent screen, grants permissions, and is redirected back to your callback URL with an authorization code. Exchange that code for an access token and refresh token.\n\nAccess tokens expire after one hour. Use the refresh token to get a new access token without requiring the user to log in again. Refresh tokens expire after 90 days of inactivity.\n\n### Scopes\n\nBoth key and OAuth token permissions are governed by scopes. Available scopes include `read:data`, `write:data`, `manage:users`, and `manage:billing`. Request only the scopes your application actually needs. Overly permissive tokens are a significant security risk if compromised."
+    },
+    {
+      "id": "doc-004",
+      "title": "API Rate Limits",
+      "category": "API",
+      "content": "## API Rate Limits\n\nRate limits exist to ensure consistent performance for all users and to protect the service from abuse. Limits are applied per API key (or per OAuth token), not per IP address.\n\n### Tier Limits\n\nLimits vary by plan tier:\n\n- **Starter**: 60 requests per minute, 5,000 per day\n- **Growth**: 300 requests per minute, 50,000 per day\n- **Business**: 1,000 requests per minute, 500,000 per day\n- **Enterprise**: Custom limits, negotiated per contract\n\nLimits are enforced on a rolling 60-second window, not a fixed clock minute. This means bursting to your per-minute limit and then waiting 60 seconds will not cause problems, but sustained traffic above the limit will result in throttling.\n\n### Handling 429 Responses\n\nWhen you exceed the rate limit, the API returns HTTP 429 with a JSON body indicating why you were throttled. Two headers accompany the response: `X-RateLimit-Remaining` (requests left in the current window) and `Retry-After` (seconds until you can retry). Always honor the `Retry-After` value \u2014 retrying immediately just burns your quota faster.\n\n### Backoff Strategy\n\nFor services that need to stay within rate limits under variable load, implement exponential backoff with jitter. On a 429, wait `min(base * 2^attempt, max_wait) + random(0, jitter)` seconds before retrying. A reasonable configuration is base=1s, max_wait=60s, jitter=0.5s. After five consecutive failures, surface the error to your users rather than continuing to retry silently.\n\nFor batch operations, use our bulk endpoints where available \u2014 they are rate-limited per call rather than per record, making them significantly more efficient for large datasets."
+    },
+    {
+      "id": "doc-005",
+      "title": "API Error Codes",
+      "category": "API",
+      "content": "## API Error Codes\n\nAll API errors return a JSON body with a `code` field (machine-readable), a `message` field (human-readable description), and occasionally a `details` object with additional context.\n\n### 4xx Client Errors\n\n| Code | HTTP Status | Meaning | Fix |\n|------|-------------|---------|-----|\n| `invalid_request` | 400 | Malformed JSON or missing required fields | Check request body against the schema in the API reference |\n| `unauthorized` | 401 | Missing or invalid API key | Verify the Authorization header format and key validity |\n| `forbidden` | 403 | Valid key but insufficient scope | Check the scopes assigned to your API key |\n| `not_found` | 404 | Resource does not exist | Confirm the resource ID; it may have been deleted |\n| `conflict` | 409 | State conflict, e.g. duplicate creation | Check if the resource already exists before creating |\n| `unprocessable` | 422 | Semantically invalid request | Read the `details` field for specific field-level errors |\n| `rate_limited` | 429 | Exceeded rate limit | Back off and retry after `Retry-After` seconds |\n\n### 5xx Server Errors\n\n| Code | HTTP Status | Meaning | Fix |\n|------|-------------|---------|-----|\n| `internal_error` | 500 | Unexpected server error | Retry with backoff; if persistent, file a support ticket with the request ID |\n| `service_unavailable` | 503 | Planned or unplanned downtime | Check the status page; retry when service resumes |\n| `gateway_timeout` | 504 | Request took too long | Reduce payload size or use async endpoints for large operations |\n\nEvery error response includes a `request_id` header. Include this in any support ticket \u2014 it allows the team to look up the exact request in server logs and diagnose the issue quickly. Without it, debugging intermittent 5xx errors is significantly slower."
+    },
+    {
+      "id": "doc-006",
+      "title": "Billing Overview",
+      "category": "Billing",
+      "content": "## Billing Overview\n\nBilling is managed at the organization level. Only users with the Admin or Billing Manager role can view or change billing information.\n\n### Plan Tiers\n\nPlans are priced per seat (per active user per month). A seat is consumed by any user who logged in at least once during the billing period. Deactivated users do not consume seats. Seats are counted at the time of invoice generation, not at the time of user creation.\n\n- **Starter**: Up to 5 seats, flat rate, monthly billing only\n- **Growth**: 6-50 seats, per-seat pricing, monthly or annual billing\n- **Business**: 51-500 seats, per-seat pricing with volume discount, annual billing preferred\n- **Enterprise**: 500+ seats, custom pricing, negotiated SLA, dedicated support\n\n### Billing Cycle\n\nMonthly plans bill on the same calendar day each month \u2014 the anniversary of when you first subscribed. Annual plans bill once per year on that same anniversary. If you subscribe on the 31st and a given month has fewer days, billing occurs on the last day of that month.\n\n### Prorations\n\nWhen you add seats mid-cycle, you are charged for the prorated cost of those seats for the remaining days in the current period. When you remove seats, the credit is applied to your next invoice rather than refunded to your payment method, unless you are downgrading plans, in which case the refund policy in the Refund and Cancellation Policy document applies.\n\nUpgrading plans mid-cycle also prorates both the old plan's credit and the new plan's charge. The net difference is charged immediately if positive, or credited to your account if negative."
+    },
+    {
+      "id": "doc-007",
+      "title": "Invoice Management",
+      "category": "Billing",
+      "content": "## Invoice Management\n\nAll invoices are available in your organization's billing portal. Navigate to Settings > Billing > Invoices to see the full history.\n\n### Accessing Invoices\n\nInvoices are generated within 24 hours of a successful payment. Each invoice shows the billing period, a line-item breakdown of charges, the payment method used (last four digits of card or ACH account), and the payment status. Invoices with status \"open\" indicate a failed charge; \"paid\" invoices are finalized.\n\n### Downloading Invoices\n\nEvery invoice has a PDF download option. The PDF is formatted for accounting purposes and includes your organization's legal name, address, and tax ID if you have provided them. If you need to update the legal name or address on invoices, update the billing information in Settings > Billing > Details before the next billing cycle \u2014 changes do not retroactively update past invoices.\n\n### VAT and Tax\n\nIf your organization is based in the EU or another jurisdiction that requires VAT collection, you will be charged VAT at the applicable rate unless you provide a valid VAT registration number. Enter your VAT number in Settings > Billing > Tax Information. Upon saving, the system validates the number against the EU VIES database (or equivalent) and, if valid, immediately applies the zero-VAT rate to future invoices. VAT is never refunded on past invoices where it was correctly charged.\n\nUS-based organizations in states where we collect sales tax will see that tax itemized on their invoice. If your organization is tax-exempt, upload your exemption certificate through the billing portal and allow up to one business day for review."
+    },
+    {
+      "id": "doc-008",
+      "title": "Refund and Cancellation Policy",
+      "category": "Billing",
+      "content": "## Refund and Cancellation Policy\n\n### Cancellation\n\nYou can cancel your subscription at any time from Settings > Billing > Plan. Cancellation takes effect at the end of your current billing period \u2014 you retain access to all features until then. After the period ends, the organization is downgraded to a read-only state: members can view existing data but cannot create, edit, or delete anything. Data is retained for 90 days post-cancellation, after which it is permanently deleted.\n\nTo cancel immediately (forfeiting remaining access), contact billing support. This is rarely necessary but is handled case by case.\n\n### Refund Eligibility\n\nMonthly plan subscribers are eligible for a full refund within 7 days of initial signup. After that window, monthly charges are non-refundable but you can cancel to stop future charges. There is no partial-month refund for cancellations mid-cycle.\n\nAnnual plan subscribers are eligible for a prorated refund for the unused portion of their term, minus a 10% early-termination fee, within the first 60 days of the annual term. After 60 days, annual plans are non-refundable.\n\n### Process\n\nRefund requests must be submitted through the billing portal or by emailing billing support with your organization name and the reason for the request. Approved refunds are credited back to the original payment method within 5-10 business days. If the original payment method is no longer valid, the team will arrange an alternative.\n\nPlan downgrades that result in a credit are applied to your next invoice rather than refunded, unless you are also cancelling the subscription."
+    },
+    {
+      "id": "doc-009",
+      "title": "Data Export",
+      "category": "Data Management",
+      "content": "## Data Export\n\nYou can export your organization's data at any time from Settings > Data > Export. Only Admin users can initiate exports.\n\n### Formats\n\nExports are available in three formats:\n\n- **JSON**: Complete data with all fields and nested objects. Use this for re-importing into another system or for programmatic processing.\n- **CSV**: Flattened tabular data. Nested objects are serialized as JSON strings within cells. Good for spreadsheet analysis.\n- **Parquet**: Columnar format optimized for large datasets and analytics tools like DuckDB, Spark, or BigQuery.\n\nNot all data types are available in all formats. Parquet is available only for datasets over 100,000 rows.\n\n### Scheduling Exports\n\nRecurring exports can be scheduled daily, weekly, or monthly. Scheduled exports are delivered to an S3-compatible object storage bucket you configure in the export settings. You must provide a bucket name, region, and IAM credentials with `s3:PutObject` permission. Test the connection before saving the schedule \u2014 the UI will attempt a test write to confirm the credentials are valid.\n\n### Large Dataset Handling\n\nExports over 1 GB are split into multiple files automatically, each capped at 500 MB. The export job runs asynchronously \u2014 you receive an email notification with a download link when the job completes. Download links expire after 7 days.\n\nFor very large datasets (over 10 million rows), exports can take 30-60 minutes. During this time the export job is visible in Settings > Data > Export History with a status of \"processing\". Do not restart the job if it appears stuck \u2014 check the history page first and contact support only if status has not changed after two hours."
+    },
+    {
+      "id": "doc-010",
+      "title": "User Roles and Permissions",
+      "category": "Team Management",
+      "content": "## User Roles and Permissions\n\nAccess control is managed through a role-based system. Each organization member is assigned exactly one role. Roles cannot be combined \u2014 if a user needs permissions from two roles, grant the higher of the two.\n\n### Roles\n\n**Admin**: Full access to all features, settings, billing, and user management. Admins can invite and remove members, change roles, configure SSO, and manage integrations. Every organization must have at least one Admin at all times.\n\n**Member**: Can access and use all core product features within the organization's workspace. Cannot access billing, cannot invite or remove other users, and cannot change organization-level settings.\n\n**Viewer**: Read-only access. Can view data and reports but cannot create, edit, or delete anything. Useful for stakeholders, auditors, or contractors who need visibility without write access.\n\n### Custom Roles (Business and Enterprise)\n\nBusiness and Enterprise plans can define custom roles with granular permission sets. Permissions are grouped into categories: Data, Integrations, Reporting, and Administration. Each category has read, write, and delete permissions that can be toggled independently. Custom roles are defined at the organization level and can be assigned to any member.\n\n### Transferring Ownership\n\nOrganization ownership can be transferred to any existing Admin. The current owner goes to Settings > Team > Transfer Ownership, selects the new owner, and confirms with their password. The outgoing owner is downgraded to Admin. If the original owner needs to leave the organization entirely, they should complete the transfer first, then remove themselves.\n\n### Role Change Behavior\n\nRole changes take effect immediately. If you downgrade a user from Admin to Member while they are actively logged in, their permissions change on the next page load without requiring them to log out."
+    },
+    {
+      "id": "doc-011",
+      "title": "Onboarding Checklist",
+      "category": "Getting Started",
+      "content": "## Onboarding Checklist\n\nThis guide covers the first things to do after creating your organization account. Completing all of these steps typically takes 20-30 minutes and ensures the rest of the platform works as expected.\n\n### Account Setup\n\n1. Verify your email address if you have not already. Some features are gated until email is confirmed.\n2. Complete your profile: set a display name and upload a profile picture. Teammates can identify you in shared views.\n3. Enable two-factor authentication (2FA). Go to Account Settings > Security. See the 2FA Setup guide for step-by-step instructions.\n4. Set your notification preferences in Account Settings > Notifications. By default, all email notifications are enabled \u2014 turn off categories you do not want.\n\n### First Integration\n\n5. Connect your first data source or integration from the Integrations page. If you are connecting a database, you will need the host, port, username, password, and database name.\n6. Run a test query or sync to confirm the connection is working.\n7. Set up a webhook if your workflow requires real-time event delivery. See the Webhook Configuration guide.\n\n### Team Invite\n\n8. Invite teammates from Settings > Team > Invite Members. Enter email addresses and select roles before sending. Invites expire after 7 days.\n9. If your organization uses SSO, configure it before inviting large numbers of users \u2014 SSO-invited users cannot set a local password. See the SSO / SAML Setup guide.\n10. Share the onboarding checklist with invited members so they can complete their own account setup steps.\n\nOnce all ten steps are complete, your organization is ready for production use. If you run into any issues during onboarding, contact support and reference which step you are on."
+    },
+    {
+      "id": "doc-012",
+      "title": "Third-Party Integrations Overview",
+      "category": "Integrations",
+      "content": "## Third-Party Integrations Overview\n\nThe platform supports a growing catalog of third-party integrations accessible from the Integrations page. Integrations are installed at the organization level and managed by Admins.\n\n### Zapier\n\nThe Zapier integration lets you connect to thousands of other apps without writing code. Use our Zapier app to trigger actions in external tools when events happen in your workspace, or to create records in your workspace based on events in external apps. The integration requires a Zapier account (free tier works for basic use cases). After connecting, Zapier handles the authentication \u2014 you do not need to manage API keys manually.\n\n### Slack\n\nConnecting Slack enables notifications and interactive workflows directly in your channels. Admins install the Slack app from our Integrations page, which redirects to Slack's OAuth flow. Once installed, configure which events send messages to which channels from the integration settings. You can also configure Slack alerts for specific thresholds or anomalies if your plan includes alerting.\n\n### Salesforce\n\nThe Salesforce integration syncs data bidirectionally between the two platforms. Set up requires a Salesforce account with API access enabled and a dedicated integration user with appropriate object permissions. The field mapping is configurable from the integration settings. Sync runs on a configurable schedule (minimum 15 minutes). Data that fails to sync is logged in the integration error log, accessible from the integration's settings page.\n\n### General Notes\n\nAll integrations use OAuth or webhook-based authentication \u2014 we do not store raw credentials for third-party systems. If an integration shows a \"disconnected\" status, it typically means the OAuth token expired or the third-party permissions were revoked. Reconnect by clicking \"Reconnect\" and completing the OAuth flow again."
+    },
+    {
+      "id": "doc-013",
+      "title": "Webhook Configuration",
+      "category": "Integrations",
+      "content": "## Webhook Configuration\n\nWebhooks deliver real-time event notifications to a URL of your choosing. When a specified event occurs in your workspace, a POST request is sent to your endpoint with a JSON payload describing the event.\n\n### Setup\n\nCreate a webhook from Settings > Integrations > Webhooks > New Webhook. You must provide:\n\n- **Endpoint URL**: The HTTPS URL of your receiving server. HTTP endpoints are not accepted.\n- **Events**: One or more event types to subscribe to. Available events depend on your plan tier.\n- **Secret**: A string used to sign webhook payloads. We recommend generating a random 32-byte string.\n\nAfter creating the webhook, the system sends a test ping to your endpoint. Your server must respond with HTTP 200 within 5 seconds for the test to pass.\n\n### Retry Logic\n\nIf your endpoint is unavailable or returns a non-2xx response, we retry delivery with exponential backoff: 30 seconds, 5 minutes, 30 minutes, 2 hours, and finally 8 hours. After the fifth failure, the event is dropped and logged as \"failed\" in the webhook delivery log. Webhooks that fail consistently are automatically disabled after 48 hours of consecutive failures. You will receive an email alert when this happens.\n\n### Signature Verification\n\nEvery webhook request includes an `X-Signature-SHA256` header containing an HMAC-SHA256 signature of the request body, keyed with your webhook secret. Verify this signature on every incoming request before processing the payload. This prevents malicious third parties from sending fake events to your endpoint.\n\nTo verify: compute `HMAC-SHA256(raw_request_body, webhook_secret)` and compare it to the value in the header using a constant-time comparison function to prevent timing attacks. Most web frameworks have utility functions for this."
+    },
+    {
+      "id": "doc-014",
+      "title": "SSO / SAML Setup",
+      "category": "Authentication",
+      "content": "## SSO / SAML Setup\n\nSingle sign-on via SAML 2.0 is available on Business and Enterprise plans. SSO allows your team members to log in using your organization's identity provider (IdP) \u2014 Okta, Azure AD, Google Workspace, and OneLogin are all confirmed to work.\n\n### IdP Configuration\n\nIn your IdP, create a new SAML application. You will need to configure:\n\n- **ACS URL (Assertion Consumer Service URL)**: Found in Settings > Security > SSO. This is where the IdP sends the SAML response after authentication.\n- **Entity ID**: Also found in the SSO settings page. Use this as the SP Entity ID in your IdP configuration.\n- **NameID format**: Set to `emailAddress`.\n\nAfter configuring your IdP, download the metadata XML file or note the SSO URL and certificate.\n\n### Attribute Mapping\n\nThe following attributes must be included in the SAML assertion:\n\n- `email` \u2014 used as the unique identifier for the user\n- `firstName` and `lastName` \u2014 used to populate the display name\n- `role` (optional) \u2014 if included, maps to our roles (admin, member, viewer). If omitted, new users are assigned the Member role by default.\n\n### Completing Setup\n\nIn Settings > Security > SSO, paste your IdP metadata XML or enter the SSO URL and certificate manually. Save the configuration and use the \"Test SSO\" button to trigger a test login. The test opens a new browser window \u2014 complete the login there. If it succeeds, SSO is live.\n\n### Troubleshooting\n\nCommon issues: incorrect ACS URL (copy it directly from settings, do not type it manually), attribute names that do not match exactly (case-sensitive), and clock skew between IdP and SP servers (SAML assertions are time-sensitive; clocks must be within 5 minutes of each other)."
+    },
+    {
+      "id": "doc-015",
+      "title": "Performance Troubleshooting",
+      "category": "Technical",
+      "content": "## Performance Troubleshooting\n\nIf you are experiencing slow responses, timeouts, or degraded performance, this guide walks through the most common causes and how to diagnose them.\n\n### Slow Queries\n\nThe most frequent cause of slow responses is an unoptimized query against a large dataset. Check whether the slow operation involves filtering or aggregating a large table. If so:\n\n1. Confirm that the fields you are filtering on are indexed. You can view index status from Settings > Data > Indexes.\n2. Avoid using unbounded queries (no date range or limit clause). Always scope your query to a reasonable time window.\n3. Use the query analyzer (available in the developer console) to see estimated row counts and query plan details before running expensive operations.\n\n### Timeouts\n\nAPI requests that take longer than 30 seconds are terminated with a 504 gateway timeout. For operations that legitimately take longer \u2014 bulk data processing, large exports \u2014 use the async endpoints. Submit the job, receive a job ID, and poll the status endpoint until the job completes.\n\n### Profiling Tips\n\nEnable query profiling from Settings > Developer > Profiling. This adds response headers with timing breakdowns for each request: time spent in the database, serialization, and network. Compare these values when a request is slow versus fast to isolate where time is being spent.\n\nIf database time is high: check indexes. If serialization time is high: reduce the number of fields you are requesting (use field selection). If network time is high: consider whether your client is geographically far from the API region and whether you should request a region change.\n\n### Common Patterns to Avoid\n\n- N+1 query patterns: fetching a list and then making one API call per item. Use the bulk fetch endpoints instead.\n- Synchronous retries on timeout: these pile up and worsen the problem. Always retry asynchronously with backoff.\n- Polling at high frequency: if you need real-time updates, use webhooks rather than polling the API every few seconds."
+    },
+    {
+      "id": "doc-016",
+      "title": "Social Login with Google and GitHub",
+      "category": "Authentication",
+      "content": "## Social Login with Google and GitHub\n\nYou can sign in using your Google or GitHub account instead of a username and password. On the login page, click Continue with Google or Continue with GitHub to start the OAuth flow. You will be redirected to the provider to authorize access, then returned to your workspace.\n\nOn first sign-in via social login, an account is created automatically using the email address from the provider. If an account with that email already exists, the social provider is linked to it. You can view and manage linked providers in Account Settings > Security > Connected Accounts.\n\nIf your organization uses SSO, social login is disabled and all authentication must go through the configured identity provider. Admins can control whether social login is permitted from Settings > Security > Authentication Methods.\n\nUnlinking a social provider is allowed only if you have a password or another provider configured. You cannot remove all authentication methods from your account."
+    },
+    {
+      "id": "doc-017",
+      "title": "Session Management and Timeout",
+      "category": "Authentication",
+      "content": "## Session Management and Timeout\n\nSessions expire after 7 days of inactivity by default. Active sessions are extended automatically on each interaction. You can view all active sessions in Account Settings > Security > Active Sessions, including device type, browser, IP address, and last activity time.\n\nTo terminate a specific session, click Revoke next to that session. To log out everywhere at once, use Revoke All Other Sessions.\n\nOrganization admins can configure a shorter session timeout from Settings > Security > Session Policy. Options range from 1 hour to 30 days. Changes apply to new sessions immediately; existing sessions are not affected until they next interact with the server.\n\nIf your account is compromised, revoking all sessions immediately invalidates every active login across all devices. Follow this with a password change and 2FA enable or reset."
+    },
+    {
+      "id": "doc-018",
+      "title": "IP Allowlisting",
+      "category": "Security",
+      "content": "## IP Allowlisting\n\nBusiness and Enterprise plans can restrict access to specific IP addresses or CIDR ranges. When an allowlist is active, login attempts and API requests from unlisted IPs are rejected with a 403 response before authentication is checked.\n\nConfigure the allowlist in Settings > Security > IP Allowlist. Add individual IPs or ranges in CIDR notation (e.g. 192.168.1.0/24). Before saving, confirm your current IP is included. Saving an allowlist that excludes your own IP will lock you out immediately.\n\nAllowlists apply to both the web UI and the API. If you use CI/CD pipelines that call the API, add the pipeline runner IP ranges. Major CI providers publish their IP ranges in documentation.\n\nIf you are locked out due to an incorrect allowlist, contact support from a verified email address and provide your organization name. Allowlist removal requires identity verification from an admin."
+    },
+    {
+      "id": "doc-019",
+      "title": "Pagination and Cursors",
+      "category": "API",
+      "content": "## Pagination and Cursors\n\nAll list endpoints are paginated. Results are not returned in a single response. Use pagination parameters to retrieve additional pages.\n\nWe use cursor-based pagination rather than offset pagination. Cursor pagination is stable: inserting or deleting records between page fetches does not cause items to be skipped or duplicated. Each response includes a next_cursor field. Pass this value as the cursor parameter in your next request to fetch the following page. When next_cursor is null, you have reached the last page.\n\nThe default page size is 20. You can increase this up to 100 using the limit parameter. Requesting more than 100 items per page returns a 400 error.\n\nFor full dataset exports, cursor pagination is slower than using the Data Export feature, which generates optimized bulk files. Use the API for interactive use cases and the export system for large one-time or scheduled data pulls."
+    },
+    {
+      "id": "doc-020",
+      "title": "Filtering and Sorting",
+      "category": "API",
+      "content": "## Filtering and Sorting\n\nList endpoints accept filter and sort parameters to reduce and order results server-side. Filtering client-side after fetching all records is inefficient and should be avoided.\n\nFilters are passed as query parameters. Simple equality filters use the field name directly: status=active. Range filters use operators appended to the field name: created_at_gte=2024-01-01 and created_at_lte=2024-12-31. Multiple filters are ANDed together.\n\nSorting uses the sort parameter with the field name and direction: sort=created_at:desc. Multiple sort fields are comma-separated: sort=status:asc,created_at:desc. Only indexed fields can be used for sorting; attempting to sort on an unindexed field returns a 400 error.\n\nComplex filter logic (OR conditions, nested expressions) is available via the POST /query endpoint, which accepts a filter object in the request body."
+    },
+    {
+      "id": "doc-021",
+      "title": "API Versioning and Deprecation",
+      "category": "API",
+      "content": "## API Versioning and Deprecation\n\nThe API is versioned via the URL path. The current stable version is v2 (e.g. /api/v2/records). Version v1 is deprecated but still operational with a sunset date of December 31, 2025.\n\nWhen a version is deprecated, all API responses include a Deprecation header with the sunset date and a Link header pointing to the migration guide. Subscribe to the developer changelog to receive advance notice of upcoming deprecations. We commit to at least six months notice before sunsetting any version.\n\nBreaking changes are never made within a version. Non-breaking changes (new optional fields, new endpoints) are added without a version bump.\n\nTo pin to a specific minor behavior, use the API-Version header to specify a date-stamped behavior snapshot. This is intended for high-stability integrations that need strict consistency across deployments."
+    },
+    {
+      "id": "doc-022",
+      "title": "Idempotency Keys",
+      "category": "API",
+      "content": "## Idempotency Keys\n\nMutating requests (POST, PUT, PATCH, DELETE) can be made idempotent by including an Idempotency-Key header. If a request fails mid-flight due to a network error, you can safely retry it with the same key and the operation will not be executed twice.\n\nThe key can be any string up to 255 characters. Use a UUID generated per request. Keys are stored for 24 hours. Within that window, a duplicate request with the same key returns the same response as the first attempt, without re-executing the operation.\n\nIdempotency is particularly important for payment and billing operations, user creation, and any workflow where duplicate execution would cause data inconsistency.\n\nIf two concurrent requests arrive with the same key, the second is held until the first completes, then returns the first request's result. There is no conflict or error in this case."
+    },
+    {
+      "id": "doc-023",
+      "title": "Bulk Operations",
+      "category": "API",
+      "content": "## Bulk Operations\n\nSeveral endpoints support bulk operations to reduce API call volume when working with many records simultaneously.\n\nBulk create accepts an array of up to 100 objects. Each object is validated independently. The response includes a results array with the outcome for each item: either the created record or an error object. Partial success is possible. The HTTP status is 207 Multi-Status when results are mixed.\n\nBulk fetch accepts a comma-separated list of IDs in the ids query parameter, up to 100 IDs. Records not found are omitted from the response without error.\n\nBulk update and bulk delete follow the same pattern. All bulk endpoints are rate-limited per request, not per record, making them significantly more efficient than individual calls for large volumes.\n\nFor operations on more than 100 records, loop through batches of 100 with a small delay between batches to avoid hitting rate limits."
+    },
+    {
+      "id": "doc-024",
+      "title": "Payment Methods",
+      "category": "Billing",
+      "content": "## Payment Methods\n\nWe accept credit and debit cards (Visa, Mastercard, American Express, Discover), ACH bank transfers for US-based customers, and SEPA direct debit for EU customers. Wire transfer and purchase orders are available for Enterprise plans.\n\nAdd and manage payment methods in Settings > Billing > Payment Methods. You can have multiple methods on file. The primary method is charged automatically on the billing date. Designate a backup method to handle cases where the primary fails.\n\nCard details are never stored on our servers. We use Stripe as our payment processor and store only a token referencing the card. PCI compliance is maintained by Stripe.\n\nFor ACH and SEPA, a micro-deposit verification step is required on first setup. Two small deposits are made to the account and you must confirm the amounts in the billing portal to activate the payment method. Verification typically takes one business day."
+    },
+    {
+      "id": "doc-025",
+      "title": "Failed Payments and Recovery",
+      "category": "Billing",
+      "content": "## Failed Payments and Recovery\n\nWhen a charge fails, we attempt recovery automatically before suspending service. The retry schedule is: 3 days after the first failure, 5 days later, then 7 days after that. If all retries fail, the subscription enters a grace period.\n\nDuring the grace period (7 days), full service access continues. Admins receive email notifications on each failed attempt. The Billing page shows a banner with the payment status and a prompt to update the payment method.\n\nIf payment is not resolved within the grace period, the account moves to restricted mode, read-only access until the outstanding balance is paid. Update the payment method and use the Retry Charge button in Settings > Billing to immediately retry.\n\nPayment failures are almost always caused by expired cards, updated card numbers, or insufficient funds. The failure reason is shown in the billing portal."
+    },
+    {
+      "id": "doc-026",
+      "title": "Discount Codes and Account Credits",
+      "category": "Billing",
+      "content": "## Discount Codes and Account Credits\n\nPromotion codes can be applied during initial signup or from Settings > Billing > Apply Promotion Code. Each code is single-use per organization and has an expiry date. Codes cannot be combined. Only one active promotion applies at a time.\n\nAccount credits are issued by the billing team in response to service disruptions, billing errors, or as part of negotiated agreements. Credits appear in Settings > Billing > Credits and are automatically applied to your next invoice before any card charge. Credits do not expire unless tied to a specific promotion with stated terms.\n\nProrated credits from plan downgrades accumulate as account credit rather than returning to your payment method.\n\nYou cannot convert account credits to cash or transfer them to another organization. If you cancel with a remaining credit balance, credits are forfeited unless you contact billing support before cancellation."
+    },
+    {
+      "id": "doc-027",
+      "title": "Data Import",
+      "category": "Data Management",
+      "content": "## Data Import\n\nData can be imported from CSV or JSON files up to 500 MB per file. Access the import tool from Settings > Data > Import. Larger datasets should be split into multiple files before importing.\n\nBefore importing, map your file columns to the system fields using the mapping UI. Required fields are flagged. The import will not proceed until all required fields are mapped. Optional fields can be left unmapped and will receive default values.\n\nThe importer validates data before committing. Validation errors are shown in a preview table with affected rows highlighted. You can download a CSV of error rows, correct them, and re-upload. A partial import (committing valid rows and skipping errors) is available as an option.\n\nLarge imports run asynchronously. You receive an email when the import completes with a summary of rows imported, skipped, and any errors encountered."
+    },
+    {
+      "id": "doc-028",
+      "title": "Data Retention Policy",
+      "category": "Data Management",
+      "content": "## Data Retention Policy\n\nActive subscription data is retained indefinitely while your subscription is active. After cancellation, data is held for 90 days in a read-only state, then permanently deleted.\n\nSoft-deleted records (deleted via the UI or API) are retained for 30 days and can be restored within that window. After 30 days, soft-deleted records are permanently removed. Permanent deletion cannot be undone.\n\nAudit logs are retained for 12 months on Business plans and 36 months on Enterprise plans. Starter and Growth plans retain 30 days of audit logs.\n\nCustom retention schedules are available on Enterprise plans. You can configure per-object-type retention periods from 30 days to 7 years to meet compliance requirements. Custom schedules apply to new records from the point of configuration."
+    },
+    {
+      "id": "doc-029",
+      "title": "GDPR and Data Deletion Requests",
+      "category": "Data Management",
+      "content": "## GDPR and Data Deletion Requests\n\nFor EU-based organizations and any organization processing personal data of EU residents, we act as a data processor. Our Data Processing Agreement (DPA) is available for signature from Settings > Legal > DPA.\n\nTo fulfill a data subject access request (DSAR), export all data associated with a specific user from Settings > Data > Export, filtering by user ID.\n\nTo fulfill a right-to-erasure request, use the API endpoint DELETE /users/{id}/personal-data. This anonymizes all personal identifiers (name, email, IP addresses) in records created by that user while preserving the records for audit purposes.\n\nWe maintain a sub-processors list at our Trust Center. Significant changes to sub-processors are communicated 30 days in advance by email to DPA signatories."
+    },
+    {
+      "id": "doc-030",
+      "title": "Storage Limits",
+      "category": "Data Management",
+      "content": "## Storage Limits\n\nStorage is measured in terms of records and file attachments. Record counts vary by plan:\n\n- Starter: 100,000 records, 5 GB file storage\n- Growth: 1,000,000 records, 50 GB file storage\n- Business: 10,000,000 records, 500 GB file storage\n- Enterprise: Custom, negotiated\n\nStorage usage is visible in Settings > Usage. An alert is sent at 80% and 95% capacity. At 100%, write operations are blocked until capacity is increased.\n\nFiles are deduplicated: uploading the same file twice does not double the storage consumed.\n\nArchived records count toward storage. If you need to free up storage without deleting data, export records and delete them from the system. Exports can be re-imported later if the data is needed again."
+    },
+    {
+      "id": "doc-031",
+      "title": "SCIM Provisioning",
+      "category": "Team Management",
+      "content": "## SCIM Provisioning\n\nSCIM (System for Cross-domain Identity Management) automates user provisioning and deprovisioning. When a user is added to the application in your IdP, they are automatically created in your workspace. When removed from the IdP, they are deactivated.\n\nSCIM 2.0 is supported and available on Enterprise plans. To enable it, go to Settings > Security > SCIM and generate a SCIM bearer token. In your IdP, configure a new SCIM integration using our SCIM base URL and the token.\n\nSupported SCIM operations: create user, update user attributes, deactivate user, and reactivate user. Group sync is supported. Role assignment via SCIM uses the role attribute: admin, member, or viewer.\n\nSCIM deactivation sets the user to inactive but does not delete their data. To permanently delete user data, use the GDPR data deletion endpoint after deactivating."
+    },
+    {
+      "id": "doc-032",
+      "title": "Audit Logs",
+      "category": "Security",
+      "content": "## Audit Logs\n\nAll security-relevant actions are logged in the audit trail: logins, permission changes, data exports, API key creation and revocation, billing changes, and admin actions. Audit logs cannot be modified or deleted.\n\nAccess audit logs from Settings > Security > Audit Log. Filter by user, action type, date range, or IP address. Each log entry shows the timestamp, actor, action, target resource, IP address, and outcome.\n\nAudit logs can be exported as CSV or streamed to an external SIEM via webhook. Configure streaming in Settings > Security > Audit Log > Export.\n\nRetention periods: 30 days (Starter/Growth), 12 months (Business), 36 months (Enterprise). Log entries older than the retention limit are permanently deleted.\n\nFailed login attempts are logged regardless of whether an account exists for the email, to prevent user enumeration via audit log analysis."
+    },
+    {
+      "id": "doc-033",
+      "title": "Security Overview",
+      "category": "Security",
+      "content": "## Security Overview\n\nWe maintain SOC 2 Type II certification, reviewed annually. The current report is available under NDA from Settings > Legal > Security Documents.\n\nData is encrypted at rest using AES-256 and in transit using TLS 1.2 minimum. Database backups are encrypted using the same standard. Encryption keys are managed via a dedicated KMS and rotated annually.\n\nOur infrastructure runs on AWS in multiple availability zones. We publish real-time service status and historical uptime at our status page. Incidents are posted within 15 minutes of detection.\n\nVulnerability disclosures can be submitted via our security contact in Settings > Legal > Security. We follow a 90-day responsible disclosure policy. Confirmed vulnerabilities with CVSS score above 7.0 are remediated and disclosed within 90 days.\n\nPenetration tests are conducted annually by an independent firm. Executive summaries are available to Enterprise customers upon request."
+    },
+    {
+      "id": "doc-034",
+      "title": "Guest Access",
+      "category": "Team Management",
+      "content": "## Guest Access\n\nGuest users are external collaborators with access to specific projects or resources, rather than the full workspace. Guests do not consume a seat on your plan.\n\nInvite a guest from the sharing settings of a specific project: click Share > Invite Guest and enter their email address. Guests receive an email invitation. They create a guest account or log in with Google.\n\nGuests can view and comment on the resources shared with them. They cannot access other parts of the workspace, view team member lists, or see billing information. Guest permissions are fixed and cannot be elevated.\n\nGuest access can be revoked at any time from the resource's sharing settings or from Settings > Team > Guests. When access is revoked, the guest's session is terminated immediately."
+    },
+    {
+      "id": "doc-035",
+      "title": "GitHub Integration",
+      "category": "Integrations",
+      "content": "## GitHub Integration\n\nThe GitHub integration connects your repositories to your workspace. Once installed, you can link records to pull requests and commits, trigger workflows on GitHub events, and surface deployment status.\n\nInstall from Settings > Integrations > GitHub. You will be redirected to GitHub to authorize and select which repositories to grant access to. Access can be modified later from your GitHub organization settings.\n\nLinked pull requests display status (open, merged, closed) and check results inline. When a PR is merged, linked records can be automatically transitioned to a specified status.\n\nThe integration uses GitHub's webhook system to receive events in real time. If events stop arriving, check the webhook delivery history in your GitHub repository settings and verify the endpoint is receiving payloads."
+    },
+    {
+      "id": "doc-036",
+      "title": "Jira Integration",
+      "category": "Integrations",
+      "content": "## Jira Integration\n\nThe Jira integration enables bidirectional sync between Jira issues and your workspace records. Changes to a Jira issue update the linked record, and vice versa.\n\nInstall from Settings > Integrations > Jira. Enter your Jira domain, create a dedicated Jira service account with API access, and provide the API token. Select which Jira projects to sync and configure field mappings.\n\nSync is event-driven: changes trigger an immediate update on the linked side rather than waiting for a scheduled sync. For changes made while the integration is offline, a catch-up sync runs on reconnection.\n\nConflict resolution: if both sides change the same field simultaneously, the most recent change wins. Conflicts are logged in the integration error log for review."
+    },
+    {
+      "id": "doc-037",
+      "title": "Google Workspace Integration",
+      "category": "Integrations",
+      "content": "## Google Workspace Integration\n\nThe Google Workspace integration enables single sign-on via Google, calendar syncing, and file attachment from Google Drive.\n\nSSO via Google is enabled by default and requires no additional configuration. For organizations that want to enforce this and block other login methods, configure it in Settings > Security > Authentication Methods.\n\nGoogle Calendar sync is optional and must be configured per user from Account Settings > Integrations > Google Calendar.\n\nGoogle Drive attachments: from any record, click Attach > From Google Drive to attach a file without uploading a copy. The attached file is accessed from Google Drive directly, subject to the user's Drive permissions, so collaborators need Drive access to view it."
+    },
+    {
+      "id": "doc-038",
+      "title": "HubSpot Integration",
+      "category": "Integrations",
+      "content": "## HubSpot Integration\n\nThe HubSpot integration syncs contacts, companies, and deals between HubSpot and your workspace. This is useful for teams that use both systems and need a unified view of customer data.\n\nInstall from Settings > Integrations > HubSpot. Connect using a HubSpot admin account. During setup, select which HubSpot object types to sync and configure the field mapping for each.\n\nSync direction is configurable: one-way from HubSpot to your workspace, one-way the other direction, or bidirectional. Most teams start with HubSpot as the system of record.\n\nHubSpot CRM activities (calls, emails, notes) can optionally be synced as a timeline view on linked records. New activities appear within 5 minutes, limited by HubSpot's webhook delivery latency."
+    },
+    {
+      "id": "doc-039",
+      "title": "Notifications and Alerts",
+      "category": "Getting Started",
+      "content": "## Notifications and Alerts\n\nNotifications inform you of activity relevant to your work. Configure notification preferences in Account Settings > Notifications. Each notification type can be enabled for in-app delivery, email, or both.\n\nIn-app notifications appear in the notification bell in the top navigation. Clicking a notification navigates to the relevant record or event.\n\nEmail notifications are batched by default. Choose between immediate delivery, hourly digest, or daily digest per notification type. High-priority alerts (security events, payment failures) always deliver immediately.\n\nOrganization-wide alerts are sent to all admins. You cannot opt out of organization-level alerts if you have the Admin role.\n\nSlack notification routing is available via the Slack integration. Route specific notification types to specific channels for team-wide visibility."
+    },
+    {
+      "id": "doc-040",
+      "title": "File Upload Limits",
+      "category": "Technical",
+      "content": "## File Upload Limits\n\nThe maximum single file size for attachments is 100 MB. Files larger than this must be split before uploading or stored externally and linked rather than attached.\n\nSupported file types: images (PNG, JPG, GIF, WebP, SVG), documents (PDF, DOCX, XLSX, PPTX, TXT), archives (ZIP, TAR.GZ up to 50 MB), and code files (any text-based format). Executable files (EXE, DMG, BAT, SH) are rejected for security reasons.\n\nUploads use multipart form upload for files over 5 MB to improve reliability on slow connections.\n\nFiles are virus-scanned on upload. Infected files are rejected and the upload attempt is logged.\n\nFile storage counts toward your plan storage limit. Deleting an attachment removes it from storage within 24 hours."
+    },
+    {
+      "id": "doc-041",
+      "title": "Browser Compatibility",
+      "category": "Technical",
+      "content": "## Browser Compatibility\n\nWe support the two most recent major versions of Chrome, Firefox, Safari, and Edge. Older browser versions may work but are not tested.\n\nInternet Explorer is not supported.\n\nJavaScript must be enabled. Browser extensions that aggressively block scripts can interfere with specific features. If you encounter unexplained failures, test in a private window with extensions disabled.\n\nCookies are required for session management. Third-party cookies are not used. Some features require pop-ups to be allowed from our domain.\n\nIf you encounter display issues, a hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows) clears cached JS and CSS and is the first troubleshooting step."
+    },
+    {
+      "id": "doc-042",
+      "title": "Network Requirements and Firewall Setup",
+      "category": "Technical",
+      "content": "## Network Requirements and Firewall Setup\n\nThe web application and API require HTTPS access on port 443 to our domains. No other ports are required. Our domains and static IP ranges are published in the developer documentation.\n\nFor webhook delivery, your endpoint must be reachable from our egress IPs on port 443. Our egress IP list is static and published at our Trust Center. Subscribe to the IP change notification list for advance notice of any additions.\n\nIf your organization uses a proxy server, configure your browser and API clients to route requests through it. The API supports standard HTTP_PROXY and HTTPS_PROXY environment variables.\n\nWebSocket connections (used by the real-time notification system) must not be terminated by the proxy. Allow upgrade headers to pass through."
+    },
+    {
+      "id": "doc-043",
+      "title": "Report Building",
+      "category": "Analytics",
+      "content": "## Report Building\n\nReports display aggregated data from your workspace. Create a report from Analytics > Reports > New Report. Choose a data source, add metrics (aggregate functions like count, sum, average), and optionally break down results by a dimension.\n\nFilters scope the report to a subset of data. Filters can be set at the report level or as interactive controls that viewers can adjust.\n\nReports are snapshots unless configured to refresh. Set the refresh schedule from the report settings: real-time, hourly, daily, or manual.\n\nReports can be shared with specific team members, shared as a view-only link, or embedded in external tools using the embed code from the Share menu."
+    },
+    {
+      "id": "doc-044",
+      "title": "Dashboard Creation",
+      "category": "Analytics",
+      "content": "## Dashboard Creation\n\nDashboards are collections of reports and metrics displayed on a single page. Create a dashboard from Analytics > Dashboards > New Dashboard.\n\nAdd widgets by clicking Add Widget. Widgets can be existing reports, raw metric tiles, or text blocks. Drag widgets to rearrange them. Resize by dragging the bottom-right corner.\n\nDashboard-level date filters apply to all widgets that use a date dimension, overriding widget-level date settings. This lets viewers compare the same date range across all panels simultaneously.\n\nSet a default dashboard for the organization from Settings > Analytics > Default Dashboard. This is the first page members see when navigating to Analytics."
+    },
+    {
+      "id": "doc-045",
+      "title": "Scheduled Reports",
+      "category": "Analytics",
+      "content": "## Scheduled Reports\n\nReports can be delivered on a schedule via email or Slack. Open a report, click Schedule, and configure the frequency (daily, weekly, monthly), recipients, and delivery format (email with embedded screenshot, PDF attachment, or CSV data).\n\nScheduled reports run at the time of delivery and reflect current data. The same report can have multiple schedules with different recipients and frequencies.\n\nIf a scheduled report fails to generate, the delivery is skipped and a failure notification is sent to the report owner. The next scheduled delivery runs at the normal time.\n\nReport recipients do not need a workspace account to receive email deliveries. For Slack, the channel must exist and the Slack integration must be active."
+    },
+    {
+      "id": "doc-046",
+      "title": "Custom Metrics",
+      "category": "Analytics",
+      "content": "## Custom Metrics\n\nCustom metrics let you define computed values that appear alongside standard metrics in reports and dashboards. Create a custom metric from Analytics > Metrics > New Metric.\n\nMetrics are defined using a formula syntax that supports arithmetic operators, standard aggregate functions (sum, count, average, min, max, distinct_count), and conditional expressions.\n\nExamples of useful custom metrics:\n- Conversion rate: completed / created * 100\n- Average resolution time: sum(resolution_time_hours) / count(id)\n- SLA compliance: percentage of tickets resolved within 24 hours\n\nCustom metrics can be used as columns in any report using the matching data source. Once created, they cannot be deleted if referenced in a saved report. Remove references first.\n\nMetric calculations run on the server. Complex formulas on large datasets may be slow. Use the preview mode to test performance before saving."
+    },
+    {
+      "id": "doc-047",
+      "title": "Mobile App Support",
+      "category": "Technical",
+      "content": "## Mobile App Support\n\nNative iOS and Android apps are available. Download from the App Store (iOS 15+) and Google Play (Android 8+). The apps provide access to core functionality: viewing records, receiving notifications, approving requests, and leaving comments. Complex configuration and bulk operations are best done from the web app.\n\nPush notifications are enabled by default on first install. Configure which notifications trigger push alerts from the notification settings within the app.\n\nThe mobile app uses the same API as external integrations. API rate limits apply per account, not per device.\n\nIf the mobile app is not loading data, check that Background App Refresh is enabled for the app in your device settings. Some corporate MDM policies restrict this."
+    },
+    {
+      "id": "doc-048",
+      "title": "Search Functionality",
+      "category": "Technical",
+      "content": "## Search Functionality\n\nGlobal search is available from the top navigation bar and finds records, users, and settings pages across your workspace. Results are ranked by relevance and recency.\n\nSearch indexes record titles, descriptions, and all text-type fields. Attachments and file contents are not indexed. Boolean operators are supported: AND, OR, NOT (must be uppercase).\n\nSearch results are filtered by the permissions of the searching user. Searches always reflect the current state of the workspace.\n\nFor programmatic search, use the search API endpoint (GET /search?q=) which returns the same results with pagination support.\n\nSearch indexing is near-real-time. New or updated records are searchable within 30 seconds. Bulk imports may take a few minutes to fully index."
+    },
+    {
+      "id": "doc-049",
+      "title": "Annual vs Monthly Plans",
+      "category": "Billing",
+      "content": "## Annual vs Monthly Plans\n\nBoth billing frequencies provide identical features and support. The choice is purely financial and contractual.\n\nAnnual plans are discounted at approximately 20% compared to 12 months of monthly billing. The full year is billed upfront on the subscription anniversary. Annual plans are eligible for a prorated refund within the first 60 days minus a 10% early-termination fee.\n\nMonthly plans offer flexibility: cancel anytime with no long-term commitment. Monthly subscribers are eligible for a full refund within 7 days of initial signup only.\n\nSwitching from monthly to annual takes effect immediately. Switching from annual to monthly takes effect at the next annual renewal date. You cannot downgrade to monthly mid-year.\n\nLarge organizations can negotiate custom annual pricing with a multi-year commitment."
+    },
+    {
+      "id": "doc-050",
+      "title": "Developer Quickstart",
+      "category": "Getting Started",
+      "content": "## Developer Quickstart\n\nThis guide gets you from zero to your first API call in under 10 minutes.\n\n1. Create an account and verify your email.\n2. Go to Developer Settings > API Keys > New Key. Name it, select the scopes you need, and save. Copy the key immediately.\n3. Make your first request: include the key as Authorization: Bearer YOUR_API_KEY in the header.\n4. Install the official client library for your language. Libraries are available for Python, Node.js, Ruby, Go, and Java.\n5. Use the interactive API explorer at the developer portal to browse endpoints and test requests without writing code.\n\nCommon first mistakes: forgetting the Bearer prefix in the Authorization header, using deprecated v1 endpoints, and not handling 429 rate-limit responses with backoff."
+    },
+    {
+      "id": "doc-051",
+      "title": "Migration Guide",
+      "category": "Getting Started",
+      "content": "## Migration Guide\n\nMigrating from another tool involves three steps: exporting your data, importing it into your new workspace, and reconfiguring your integrations.\n\nStep 1: Export your data from the old tool in CSV or JSON format.\n\nStep 2: Use Settings > Data > Import. Map the fields from your export file to the system fields. Run a test import with a small sample first to verify mappings.\n\nStep 3: Reconnect any third-party integrations. API keys and OAuth tokens from the old workspace do not carry over.\n\nCutover planning: run the old and new systems in parallel for at least one week before switching. Verify reports match between systems and communicate the cutover date to your team in advance.\n\nAfter migration, archive the old workspace rather than deleting it immediately. Keep it accessible for 30 days in case questions arise about historical data."
+    },
+    {
+      "id": "doc-052",
+      "title": "Admin Guide",
+      "category": "Getting Started",
+      "content": "## Admin Guide\n\nAs an organization admin, you are responsible for configuring the workspace and maintaining security.\n\nUser management: invite members with appropriate roles, set the organization 2FA policy, configure session timeout, and set up SSO. Review the pending invitations list weekly.\n\nBilling: keep payment information current, monitor seat usage against plan limits, and review invoices monthly. Set up a backup payment method to prevent service interruption.\n\nIntegrations: regularly review connected integrations and revoke any no longer needed. Check the integration error log monthly. Rotate API keys for critical integrations quarterly.\n\nSecurity monitoring: review the audit log weekly for unusual activity. Configure audit log streaming to your SIEM if your organization has one.\n\nData hygiene: deactivate users promptly when they leave the organization. Set up scheduled data exports to ensure backup copies exist outside the workspace."
+    },
+    {
+      "id": "doc-053",
+      "title": "Real-Time Collaboration",
+      "category": "Technical",
+      "content": "## Real-Time Collaboration\n\nMultiple users can view and edit the same record simultaneously. Real-time presence shows who is currently viewing or editing a record via avatar indicators.\n\nConflict handling: if two users edit the same field simultaneously, the last write wins. A toast notification informs the user whose change was overwritten. For frequent simultaneous editing, consider using the record lock feature.\n\nComments support @mentions to notify specific team members. Mentioned users receive an in-app notification and email.\n\nActivity history on each record shows all changes with timestamps and authors. This log is immutable and available even after a user leaves the organization.\n\nReal-time sync uses WebSocket connections. If your network blocks WebSockets, the app falls back to long polling, which is functional but has higher latency."
+    },
+    {
+      "id": "doc-054",
+      "title": "Automation Rules",
+      "category": "Technical",
+      "content": "## Automation Rules\n\nAutomation rules trigger actions automatically when defined conditions are met. Create rules from Settings > Automation > New Rule.\n\nEach rule has a trigger (the event that starts the automation), optional conditions (filters that must match), and one or more actions (what happens when triggered).\n\nTriggers: record created, record updated, field value changed, date reached, webhook received.\n\nActions: update a field, send a notification, create a record, call an external webhook, send an email, or assign to a user.\n\nRules run in listed order. If a rule action changes a field that triggers another rule, that second rule also fires. Be careful with loops: two rules that trigger each other will run until a loop-detection limit is reached and both are paused.\n\nEach rule shows a run history with the trigger event, conditions evaluated, and actions taken."
+    },
+    {
+      "id": "doc-055",
+      "title": "Custom Fields",
+      "category": "Technical",
+      "content": "## Custom Fields\n\nCustom fields extend records with data specific to your workflow. Admins create custom fields from Settings > Fields > New Field.\n\nSupported field types: text (single line), long text, number, currency, percentage, date, datetime, checkbox, select (single choice), multi-select, user reference, record link, and URL.\n\nEach field can be marked required, unique, or indexed. Indexed fields enable filtering and sorting but add storage overhead.\n\nField visibility can be controlled per view: show a field in a table view without showing it in the form view.\n\nDeleting a field permanently removes all data in that field across all records. The deletion requires a confirmation step and cannot be undone. If you need to remove a field from views without deleting its data, hide it instead."
+    },
+    {
+      "id": "doc-056",
+      "title": "Workflow Templates",
+      "category": "Getting Started",
+      "content": "## Workflow Templates\n\nTemplates are pre-configured workspace setups for common use cases. Apply a template when creating a new workspace or in an existing workspace from Settings > Templates.\n\nAvailable templates: Software Engineering (sprints, bugs, deployments), Customer Support (tickets, escalations, SLAs), Project Management (milestones, tasks, dependencies), Sales Pipeline (leads, opportunities, forecast), and HR Onboarding (tasks, documents, approvals).\n\nApplying a template creates the field structure, views, and automation rules for that workflow. Existing data is not affected. You can customize everything after applying.\n\nCreate your own template from any workspace configuration via Settings > Templates > Save as Template. Custom templates can be shared across workspaces in the same organization.\n\nTemplates do not include data records, only configuration. To clone a workspace including its data, use the export and import flow."
+    },
+    {
+      "id": "doc-057",
+      "title": "Email Integration",
+      "category": "Integrations",
+      "content": "## Email Integration\n\nThe email integration lets you create records by sending an email to a special address, and optionally reply to comments via email.\n\nEach workspace has a unique inbound email address found in Settings > Integrations > Email. Emails sent to this address are parsed into records: the subject becomes the record title, the email body becomes the description, and attachments are added as file attachments.\n\nReply via email: when a team member comments on a record, the notification email sent to watchers includes a reply address. Replying to that email adds the reply as a comment on the record.\n\nTo disable email-to-record creation if the inbound address is misused, rotate the inbound address from Settings > Integrations > Email > Rotate Address. The old address stops working immediately."
+    },
+    {
+      "id": "doc-058",
+      "title": "Calendar View",
+      "category": "Technical",
+      "content": "## Calendar View\n\nCalendar view displays records on a calendar based on a date or datetime field. Switch to calendar view from the view selector in any table.\n\nConfigure calendar view by selecting which date field to use for positioning and optionally a second field for event duration. Records without a value in the selected date field do not appear on the calendar.\n\nDrag records on the calendar to change their date. Records can be created directly on the calendar by clicking a date.\n\nGroup by a field (e.g. assignee, status) to show color-coded records. This is useful for seeing team workload across a week or month at a glance.\n\nCalendar view does not replace Google or Outlook calendar integrations. To surface records in an external calendar, use the calendar feed URL from the view settings, which generates an iCal-compatible subscription link."
+    },
+    {
+      "id": "doc-059",
+      "title": "Kanban View",
+      "category": "Technical",
+      "content": "## Kanban View\n\nKanban view organizes records as cards in columns. Each column represents a value of a select or status field. Switch to kanban view from the view selector.\n\nConfigure kanban by choosing the grouping field. Columns appear in the order the field options are defined. Optionally set a WIP limit: a visual indicator appears when the limit is exceeded.\n\nDrag cards between columns to update the grouping field value. This triggers any automation rules that watch that field. Drag within a column to reorder cards.\n\nFilter and sort apply inside kanban view. Filtering reduces which cards are visible; sorting controls the order within each column.\n\nCards show a configurable set of fields below the title. Edit the card layout in view settings to show fields most relevant to your workflow."
+    },
+    {
+      "id": "doc-060",
+      "title": "Gantt View",
+      "category": "Technical",
+      "content": "## Gantt View\n\nGantt view shows records as horizontal bars on a timeline, positioned by start and end date fields. Available on Growth plans and above.\n\nConfigure gantt by selecting the start date field, end date field, and optionally a dependency field. Records without both date fields set appear in an unscheduled sidebar.\n\nDependency lines connect records where one must complete before another begins. If a dependency creates a conflict, it is highlighted in red and you can choose to auto-adjust dates.\n\nBaseline view: save the current schedule as a baseline and compare it against actuals as dates change. The baseline appears as a thin bar behind the current bar.\n\nZoom controls adjust the timeline from day-level to year-level. Export the gantt view as PNG or PDF from the view menu for sharing with stakeholders."
+    },
+    {
+      "id": "doc-061",
+      "title": "Access Tokens for Integrations",
+      "category": "API",
+      "content": "## Access Tokens for Integrations\n\nWhen building integrations that access data on behalf of specific users rather than the organization as a whole, use OAuth 2.0 access tokens rather than organization-level API keys.\n\nAccess tokens are scoped to the permissions of the user who granted them. If that user is a Viewer, the token cannot perform write operations regardless of what the integration requests.\n\nTokens can be inspected using the token info endpoint: GET /api/v2/token/info. This returns the token owner, granted scopes, and expiry time.\n\nManage all active OAuth tokens from Account Settings > Security > Authorized Applications. Revoking a token here invalidates it immediately. Users should periodically review this list and revoke access for any applications they no longer use."
+    },
+    {
+      "id": "doc-062",
+      "title": "Keyboard Shortcuts",
+      "category": "Technical",
+      "content": "## Keyboard Shortcuts\n\nKeyboard shortcuts speed up navigation and common actions. View the full list by pressing ? in any view.\n\nGlobal shortcuts:\n- Cmd/Ctrl + K: Open command palette\n- G then H: Go to Home\n- G then I: Go to Inbox\n- G then A: Go to Analytics\n- Escape: Close modal or panel\n\nRecord shortcuts:\n- E: Edit mode\n- Cmd/Ctrl + S: Save changes\n- C: Open comment box\n- Cmd/Ctrl + Shift + D: Duplicate record\n\nTable view shortcuts:\n- Arrow keys: Navigate cells\n- Enter: Edit selected cell\n- Cmd/Ctrl + A: Select all records\n\nShortcuts can be customized from Account Settings > Preferences > Keyboard Shortcuts."
+    },
+    {
+      "id": "doc-063",
+      "title": "Dark Mode and Display Preferences",
+      "category": "Technical",
+      "content": "## Dark Mode and Display Preferences\n\nDisplay preferences are configured per user from Account Settings > Preferences > Appearance.\n\nTheme options: Light, Dark, and System (follows your operating system setting). Changes apply immediately without a page refresh. The selected theme is synced across all browsers and devices.\n\nDensity settings control the amount of information shown per row in table views: comfortable (more padding), compact (denser rows), and ultra-compact (minimal padding, maximum data density).\n\nFont size: adjust the base font size from 14px to 18px. This scales all text proportionally.\n\nLanguage: the interface is available in English, French, German, Spanish, Japanese, and Portuguese. The language setting affects UI elements only."
+    },
+    {
+      "id": "doc-064",
+      "title": "Commenting and Mentions",
+      "category": "Technical",
+      "content": "## Commenting and Mentions\n\nComments can be added to any record from the activity panel on the right side. Press C as a keyboard shortcut to open the comment box.\n\nComments support markdown formatting: bold, italic, inline code, and code blocks. URLs are auto-linked. Images can be pasted directly into the comment box.\n\nMention a team member using @name to send them a notification. The mention autocomplete opens after typing @ and filters as you type.\n\nComments can be edited or deleted by the author within 30 minutes of posting. After that window, comments are permanent. Admins can delete any comment at any time for moderation purposes.\n\nThread replies keep discussions organized. Reply to a specific comment to create a nested thread. Unresolved threads are tracked at the top of the activity panel."
+    },
+    {
+      "id": "doc-065",
+      "title": "Record Templates",
+      "category": "Technical",
+      "content": "## Record Templates\n\nRecord templates pre-fill fields and descriptions for new records. They are useful for recurring workflows like bug reports, feature requests, or onboarding tasks where every new record should have the same starting structure.\n\nCreate a record template from Settings > Templates > Record Templates > New Template, or by opening an existing record and selecting Save as Template from the record menu.\n\nTemplates can pre-fill: title, description (with structured markdown content), any field value, default assignee, and initial status.\n\nWhen creating a new record, a template picker appears. Templates do not lock fields. Everything can be edited after applying.\n\nTemplates can be shared with the whole organization or scoped to specific teams. Pin frequently used templates to the top of the template picker."
+    },
+    {
+      "id": "doc-066",
+      "title": "Duplicate Detection",
+      "category": "Data Management",
+      "content": "## Duplicate Detection\n\nThe platform flags potential duplicate records to help maintain data quality. Duplicates are detected based on matching field values in key fields configurable per record type from Settings > Data Quality.\n\nWhen creating a record, if potential duplicates are found, a sidebar panel shows the matching records with similarity scores. You can proceed with a new record, open the existing one, or merge.\n\nBulk duplicate detection runs as a scheduled job and generates a report in Settings > Data Quality > Duplicates.\n\nMerging two records: select a primary record (its ID is preserved) and a secondary. All data, comments, attachments, and activity history from the secondary are merged into the primary. The secondary is then deleted.\n\nDuplicate detection can be disabled for specific record types from Settings > Data Quality if false positives are frequent."
+    },
+    {
+      "id": "doc-067",
+      "title": "Approvals and Review Flows",
+      "category": "Technical",
+      "content": "## Approvals and Review Flows\n\nApproval flows add a structured review step before a record can advance to a certain status. Configure approval rules from Settings > Automation > Approvals.\n\nEach approval rule specifies a trigger condition, required approvers (specific users, any user in a role, or a quorum), and the action on approval or rejection.\n\nWhen an approval is triggered, approvers receive a notification with options to approve or reject directly from the notification. Approvers can add a comment explaining their decision.\n\nIf multiple approvers are required, the approval completes when the quorum is reached. If any required approver rejects, the approval fails immediately.\n\nApproval requests time out after a configurable period (1-30 days). On timeout, the approval can be set to auto-approve, auto-reject, or escalate to a fallback approver."
+    },
+    {
+      "id": "doc-068",
+      "title": "Time Tracking",
+      "category": "Technical",
+      "content": "## Time Tracking\n\nTime tracking lets team members log time spent on records. Enable the feature per record type from Settings > Fields > Enable Time Tracking.\n\nLog time from a record by clicking Log Time. Enter hours and minutes, select the date, and optionally add a description. Multiple entries can be logged per record by different users.\n\nThe timer feature allows real-time tracking: click Start Timer on a record, work, then click Stop. The elapsed time is automatically entered as a time log entry. Only one timer can be active at a time per user.\n\nTime summary on a record shows total logged hours, a breakdown by user, and a log of all entries.\n\nTime tracking reports in Analytics show time logged by user, record type, or project. Useful for client billing, identifying workflow bottlenecks, or tracking sprint velocity."
+    },
+    {
+      "id": "doc-069",
+      "title": "Dependencies and Relationships",
+      "category": "Technical",
+      "content": "## Dependencies and Relationships\n\nRecords can be linked to other records through dependency and relationship fields. A linked record field stores a live reference that updates if the linked record's data changes.\n\nDependencies (blocks/is blocked by): indicate sequencing. One record cannot be completed until another is done. Dependency relationships are visible in Gantt view as connecting lines.\n\nRelationships (parent/child): hierarchical grouping where a parent record contains child records. A parent record shows a rollup of child record status.\n\nGeneral links: non-typed links between any two records for reference. Useful for linking a bug to the feature request it was reported from.\n\nAll relationships are bidirectional. If A links to B, B also shows a link to A."
+    },
+    {
+      "id": "doc-070",
+      "title": "Access Control for Views",
+      "category": "Team Management",
+      "content": "## Access Control for Views\n\nViews can be personal (visible only to the creator) or shared (visible to the team or specific members). A single table can have many views with different filters, sorts, and field configurations.\n\nPersonal views are created by default. To share a view, open the view menu and click Share View. Choose whether to share with the entire workspace or specific members.\n\nEditing a shared view: by default, anyone with access can edit the view configuration. Lock a view to prevent changes. Only the creator or an admin can edit a locked view.\n\nDefault view: set a default view that all new members see when they first open a record type.\n\nView permissions do not affect underlying data permissions. A Viewer role user can see all records in a shared view but cannot edit them."
+    },
+    {
+      "id": "doc-071",
+      "title": "Rollups and Lookups",
+      "category": "Technical",
+      "content": "## Rollups and Lookups\n\nRollup fields aggregate values from linked child records into the parent record. Lookup fields pull a specific field value from a linked record into the current record.\n\nTo create a rollup field: add a new field, choose type Rollup, select the linked record field to roll up from, and choose the aggregation function (sum, count, average, min, max, percent complete). The rollup value updates automatically when linked records change.\n\nCommon rollup uses: counting open subtasks on an epic, summing logged hours across a project, calculating average resolution time.\n\nLookup fields display a value from a linked record without aggregation. Useful for showing the assignee of a parent record on each child task.\n\nBoth rollups and lookups are read-only. The values are computed at query time and do not consume additional storage."
+    },
+    {
+      "id": "doc-072",
+      "title": "Formulas",
+      "category": "Technical",
+      "content": "## Formulas\n\nFormula fields compute a value based on other fields in the same record. Add a formula field from Settings > Fields > New Field > Formula.\n\nFormula syntax supports arithmetic operators (+, -, *, /), comparison operators, logical operators (AND, OR, NOT), and a library of functions.\n\nUseful built-in functions:\n- IF(condition, then, else): conditional value\n- DATEDIF(date1, date2, unit): difference between dates\n- CONCATENATE(str1, str2): combine text fields\n- ROUND(number, decimals): round a number\n- NOW(): current timestamp\n\nFormulas can reference other formula fields but not in circular references. The formula editor shows errors inline as you type.\n\nFormula results are computed fresh on every record load. Formula fields do not support indexing and cannot be used for sort or filter in high-volume tables."
+    },
+    {
+      "id": "doc-073",
+      "title": "Record Locking",
+      "category": "Technical",
+      "content": "## Record Locking\n\nRecord locking prevents changes to a record while it is being edited by another user, or to protect finalized records from accidental modification.\n\nManual lock: from the record menu, click Lock Record. A locked record shows a lock indicator and prevents editing by all users except the locker and admins. To unlock, click Unlock. This is available to the locker, any Admin, or a user explicitly granted unlock permission.\n\nAutomation-based lock: configure a rule to lock records when a certain condition is met, such as locking all invoices when status is set to Approved.\n\nLocked records can still receive comments. Locking prevents field edits, not communication.\n\nBulk lock: select multiple records in table view and use the bulk action menu to lock all selected records simultaneously."
+    },
+    {
+      "id": "doc-074",
+      "title": "Import from Spreadsheet",
+      "category": "Data Management",
+      "content": "## Import from Spreadsheet\n\nImporting from a spreadsheet is the fastest way to migrate existing data. Supported formats: CSV, XLSX, and Google Sheets via a share link.\n\nFor CSV import: the first row must be a header row with column names. UTF-8 encoding is required.\n\nFor XLSX import: only the first sheet is imported. Remove any pivot tables or charts from that sheet before exporting.\n\nFor Google Sheets: share the sheet with link access, paste the URL in the import dialog, and the sheet is fetched directly.\n\nDuring import, the column mapping UI shows a preview of the first five rows to help verify mappings are correct. Date columns require selecting the format that matches your data.\n\nAfter import, review the import summary. Download the error report if any rows failed."
+    },
+    {
+      "id": "doc-075",
+      "title": "Email Templates",
+      "category": "Integrations",
+      "content": "## Email Templates\n\nEmail templates define the content of automated notification emails. They are used by automation rules that trigger email actions and by scheduled report deliveries.\n\nCreate and edit templates from Settings > Automation > Email Templates. Templates use a variable syntax for dynamic content such as record title, assignee name, and current user name.\n\nTemplates support basic HTML for formatting. Inline styles are recommended since email clients strip external CSS. Preview the rendered template using the Preview button before saving.\n\nSystem templates (welcome email, password reset, billing notifications) cannot be deleted but can be customized in appearance. Add your organization logo and adjust the color scheme from Settings > Brand > Email Branding.\n\nUnsubscribe links are required for marketing emails. For transactional emails (notifications, alerts), they are optional but recommended."
+    },
+    {
+      "id": "doc-076",
+      "title": "Localization and Timezones",
+      "category": "Technical",
+      "content": "## Localization and Timezones\n\nTimestamps are stored in UTC and displayed in each user's local timezone. Set your timezone in Account Settings > Preferences > Timezone. If not set, the browser's detected timezone is used.\n\nDate fields without a time component display without timezone conversion. A due date of Jan 15 is Jan 15 for all users regardless of timezone. Datetime fields include time and are displayed in the viewer's local timezone.\n\nWhen filtering by date ranges via the API, all datetimes must be in ISO 8601 format with UTC offset.\n\nThe interface language is set per user in Account Settings > Preferences > Language. Exported CSV and JSON files always use period as decimal separator and ISO 8601 for dates, regardless of locale."
+    },
+    {
+      "id": "doc-077",
+      "title": "Backup and Restore",
+      "category": "Data Management",
+      "content": "## Backup and Restore\n\nWe perform automated daily backups of all data with a 30-day retention period stored in a geographically separate region. Backups are encrypted and are not directly accessible to customers. They are used by our team for disaster recovery.\n\nFor your own backup copies, use the scheduled export feature to deliver exports to your S3 bucket on a daily or weekly basis.\n\nPoint-in-time restore: if you accidentally delete records, soft-deleted records are recoverable for 30 days from Settings > Data > Trash. Permanent deletions cannot be recovered through self-service. Contact support within 24 hours for a potential restore from backup.\n\nFor major incidents, contact support immediately. We can restore to a point in time within the last 30 days. Restore operations take 2-8 hours depending on data volume."
+    },
+    {
+      "id": "doc-078",
+      "title": "Multi-Workspace Management",
+      "category": "Team Management",
+      "content": "## Multi-Workspace Management\n\nAn organization can have multiple workspaces, one per department or client for example. Each workspace has independent data, settings, and member lists. Users can belong to multiple workspaces under the same organization.\n\nCreate a new workspace from the workspace switcher in the top left navigation. Only organization owners can create workspaces.\n\nUsers are invited to workspaces individually. Being a member of one workspace does not grant access to others. An organization admin can view and manage all workspaces from the Admin Console.\n\nBilling is aggregated at the organization level across all workspaces. A single invoice covers all workspace seat counts combined.\n\nCross-workspace data sharing is not supported. Records cannot be linked between workspaces. Copying records between workspaces requires exporting from one and importing into the other."
+    },
+    {
+      "id": "doc-079",
+      "title": "SSO with Azure AD",
+      "category": "Authentication",
+      "content": "## SSO with Azure AD\n\nAzure Active Directory (Entra ID) SAML integration is supported and tested on Business and Enterprise plans.\n\nIn the Azure portal, create a new Enterprise Application. Under Single sign-on, choose SAML. Fill in the Identifier (Entity ID) and Reply URL (ACS URL) from your SSO settings page.\n\nAttribute mapping for Azure AD:\n- User.userprincipalname maps to email (NameID)\n- User.givenname maps to firstName\n- User.surname maps to lastName\n\nAzure AD by default sends the UPN as the NameID. If users log in with a different email than their UPN, change the NameID claim to use user.mail instead.\n\nGroup-based access: configure Azure AD to only allow specific groups to use the application. Users not in the assigned groups cannot log in via SSO even if they have an Azure AD account."
+    },
+    {
+      "id": "doc-080",
+      "title": "SSO with Okta",
+      "category": "Authentication",
+      "content": "## SSO with Okta\n\nOkta SAML integration is fully supported and is the most commonly used IdP in our customer base. Setup typically takes under 30 minutes.\n\nIn Okta, go to Applications > Create App Integration > SAML 2.0. In the SAML settings, enter the Single Sign On URL (your ACS URL) and the Audience URI (your Entity ID), both found in Settings > Security > SSO.\n\nAttribute statements in Okta:\n- user.email maps to email\n- user.firstName maps to firstName\n- user.lastName maps to lastName\n\nJIT provisioning: when a new user logs in via Okta SSO for the first time, an account is created automatically. If the email matches an existing account, the SSO identity is linked to it.\n\nOkta's User Import feature combined with SCIM provides fully automated provisioning and deprovisioning."
+    },
+    {
+      "id": "doc-081",
+      "title": "Compliance and Data Residency",
+      "category": "Security",
+      "content": "## Compliance and Data Residency\n\nBy default, all customer data is stored in the US (AWS us-east-1). EU data residency is available on Enterprise plans, storing all data in AWS eu-west-1 (Ireland).\n\nTo request EU data residency, contact your account manager before your first data is written. Migrating an existing workspace to a different region requires a planned maintenance window.\n\nCompliance certifications held: SOC 2 Type II, ISO 27001, and GDPR-ready (DPA available). HIPAA BAA is available for Enterprise customers with a signed agreement.\n\nData processing addendum (DPA): available for EU and UK organizations as required by GDPR. Sign via Settings > Legal > Data Processing Agreement. The DPA covers standard contractual clauses for international data transfers.\n\nWe publish a Trust Center with current certifications, sub-processor list, security policies, and penetration test summaries."
+    },
+    {
+      "id": "doc-082",
+      "title": "Custom Domain Setup",
+      "category": "Technical",
+      "content": "## Custom Domain Setup\n\nEnterprise plans can host the workspace on a custom domain instead of the default subdomain.\n\nTo set up a custom domain: go to Settings > Workspace > Custom Domain, enter the desired hostname, and add the provided CNAME record to your DNS configuration. DNS propagation can take up to 48 hours but usually completes within one hour.\n\nSSL certificate provisioning is automatic. The certificate is provisioned once the CNAME is live and renews automatically every 90 days.\n\nEmail notifications, SSO callbacks, and API documentation links use the custom domain once it is active. Existing bookmarks to the default subdomain redirect automatically via a 301 redirect.\n\nIf you need to remove or change the custom domain, update the IdP ACS URL before making the DNS change to avoid SSO breakage."
+    },
+    {
+      "id": "doc-083",
+      "title": "Webhook Rate Limits",
+      "category": "Integrations",
+      "content": "## Webhook Rate Limits\n\nWebhook delivery rate limits exist on both the sending side (events delivered per second to your endpoint) and the receiving side (how fast your endpoint must respond).\n\nDelivery rate: we deliver up to 200 events per second per webhook endpoint. Events exceeding this are queued. The queue holds up to 10,000 events. If the queue fills, newer events are dropped and logged.\n\nResponse timeout: your endpoint must respond within 10 seconds. Responses that take longer are treated as failures and trigger the retry sequence. If your handler takes more than a second, respond with HTTP 200 immediately and process the payload asynchronously.\n\nBest practice: use a message queue (SQS, RabbitMQ) as your webhook endpoint. The endpoint immediately returns 200 and enqueues the payload for a worker to process.\n\nStore the event ID from each payload and check for duplicates before processing to ensure idempotency."
+    },
+    {
+      "id": "doc-084",
+      "title": "Embedding Reports",
+      "category": "Analytics",
+      "content": "## Embedding Reports\n\nReports can be embedded in external websites, internal wikis, or customer-facing portals using an iframe embed code. Access the embed code from any report via Share > Embed.\n\nThe embed URL includes a signed token that grants read-only access without requiring the viewer to log in. Tokens expire after 24 hours and are automatically refreshed when the page loads.\n\nConfigure what the embedded viewer can interact with: date range filter (allow or fix), dimension drill-down, and CSV export. More permissive settings improve the viewer experience but expose more data.\n\nEmbed tokens are scoped to the specific report or dashboard and cannot access other workspace data.\n\nFor customer-facing embeds where different customers should see different data subsets, use the API to generate report URLs with pre-applied filters combined with signed short-lived tokens."
+    },
+    {
+      "id": "doc-085",
+      "title": "Offline Mode",
+      "category": "Technical",
+      "content": "## Offline Mode\n\nThe web application supports limited offline functionality. When connectivity is lost, a banner appears. You can continue viewing recently accessed records and adding comments. Changes are queued locally.\n\nWhen connection is restored, queued changes sync automatically in the order they were made. Conflicts are resolved by the last-write-wins rule with a notification showing what changed.\n\nOffline mode is not available for: creating new records, loading records not previously visited in the session, bulk operations, and file uploads.\n\nThe mobile apps have more robust offline support. Records are cached based on recency and starred status. The mobile app can create and edit records offline.\n\nOffline mode is not suitable for mission-critical real-time operations. Build API integrations with proper retry logic rather than relying on the browser UI's offline queue."
+    },
+    {
+      "id": "doc-086",
+      "title": "User Deactivation vs Deletion",
+      "category": "Team Management",
+      "content": "## User Deactivation vs Deletion\n\nWhen a team member leaves your organization, you have two options: deactivate or delete.\n\nDeactivation (recommended): the user can no longer log in and does not consume a seat. All records, comments, and activity remain intact and attributed to them. Their account can be reactivated if they rejoin.\n\nDeletion: removes the user account permanently. Their records and comments remain but become unattributed. Activity log entries retain the user ID for audit purposes but the display name is anonymized.\n\nFor GDPR right-to-erasure requests: deactivation alone does not satisfy an erasure request. Use the personal data anonymization endpoint to remove identifying information, then deactivate the account.\n\nAdmin users cannot be deactivated if they are the last admin. Transfer admin to another user first."
+    },
+    {
+      "id": "doc-087",
+      "title": "Troubleshooting Login Issues",
+      "category": "Authentication",
+      "content": "## Troubleshooting Login Issues\n\nIf you cannot log in, work through these steps before contacting support.\n\n1. Check Caps Lock. Passwords are case-sensitive.\n2. Try the password reset flow even if you think you know your password.\n3. Check if your account is locked due to too many failed attempts. Wait 30 minutes or contact support to clear the lock.\n4. If using SSO, verify the IdP is reachable and not experiencing an outage.\n5. Try a different browser or a private window. Browser extensions and corrupted cache can interfere with login.\n6. Check if your IP is allowlisted if your organization uses IP restrictions.\n7. If you recently changed your email, log in with the new email address.\n8. Check your organization's SSO policy. If SSO is enforced, you cannot log in with a password even if you have one set.\n\nIf none of these steps resolve the issue, contact support with your email, what you see on the login page, and your browser and OS."
+    },
+    {
+      "id": "doc-088",
+      "title": "Command Palette",
+      "category": "Technical",
+      "content": "## Command Palette\n\nThe command palette (Cmd/Ctrl + K) provides keyboard-first access to navigation, search, and actions across the workspace. It is the fastest way to get anywhere without using the mouse.\n\nType to search across records, workspace pages, settings, users, and available actions. Results are ranked by recency and relevance. Use arrow keys to navigate and Enter to select.\n\nCommon uses:\n- Jump to a record: type part of the record title\n- Navigate to a settings page: type the setting name such as billing, integrations, or team\n- Run a global action: type create, export, or invite to surface quick-action commands\n- Switch workspace: type the workspace name to jump directly\n\nThe command palette learns from your usage and surfaces frequently used items higher in results over time."
+    },
+    {
+      "id": "doc-089",
+      "title": "Changelog and Release Notes",
+      "category": "Getting Started",
+      "content": "## Changelog and Release Notes\n\nWe publish release notes for every product update. Subscribe to the changelog RSS feed or email newsletter to receive updates automatically.\n\nUpdates are categorized: New (net-new features), Improved (enhancements to existing features), and Fixed (bug fixes). Breaking changes are marked explicitly and communicated at least 30 days in advance via email to all organization admins.\n\nThe in-app What's New banner highlights recent changes relevant to your plan and role. Clicking an item links to the full changelog entry.\n\nMajor releases include a migration guide if any action is required from admins. Check for required migration actions before major releases.\n\nWe follow a continuous deployment model. Updates are released frequently rather than in large batched releases. Downtime is not required for most updates."
+    },
+    {
+      "id": "doc-090",
+      "title": "Exporting Reports to PDF and CSV",
+      "category": "Analytics",
+      "content": "## Exporting Reports to PDF and CSV\n\nAny report or dashboard can be exported as PDF or CSV. Access the export option from the report's action menu.\n\nPDF export captures the visual report as rendered. The PDF includes the report title, filter state at the time of export, and a timestamp. Reports wider than one page are split across multiple pages.\n\nCSV export outputs the underlying data table. If the report has grouping or aggregations, the CSV reflects those. To export raw records, use the Data Export feature from Settings > Data > Export instead.\n\nScheduled PDF delivery sends a fresh export to email recipients or Slack on a configured schedule. This is useful for weekly executive summaries or daily operational reports."
+    },
+    {
+      "id": "doc-091",
+      "title": "Feature Flags and Beta Features",
+      "category": "Technical",
+      "content": "## Feature Flags and Beta Features\n\nSome features are released gradually behind feature flags before becoming available to all users. Beta features are accessible before general availability and may have rough edges.\n\nOpt into beta features from Settings > Preferences > Beta Features. Each feature is listed with a description and the expected general availability date. Enabling a beta feature is reversible.\n\nOrganization admins can enable or disable beta features for the entire organization from Settings > Workspace > Beta Features. The admin setting applies to all members.\n\nBeta features are not covered by the standard SLA. If a beta feature causes disruption, disabling it restores the previous behavior.\n\nProvide feedback on beta features using the feedback button that appears when a beta feature is active. Beta feedback is reviewed by the product team and influences the final implementation."
+    },
+    {
+      "id": "doc-092",
+      "title": "Database Connections",
+      "category": "Integrations",
+      "content": "## Database Connections\n\nDirect database connections allow you to query your own databases and display results alongside workspace data. Supported databases: PostgreSQL, MySQL, Microsoft SQL Server, and BigQuery.\n\nSet up a connection from Settings > Integrations > Databases > New Connection. Enter the host, port, database name, and credentials. Use a read-only database user with access only to the schemas needed.\n\nIf your database is behind a firewall, allowlist our database connector IP ranges. Alternatively, use our IP tunnel feature (Enterprise only) to connect via an encrypted SSH tunnel.\n\nOnce connected, create database views in Analytics > Data Sources. Write a SQL query, name the view, and it becomes available as a data source for reports. SQL queries run with a row limit of 100,000 during preview.\n\nDatabase connections are tested at creation and re-checked every 15 minutes. A failed health check triggers an alert to workspace admins."
+    },
+    {
+      "id": "doc-093",
+      "title": "Team-Level Permissions",
+      "category": "Team Management",
+      "content": "## Team-Level Permissions\n\nTeams allow you to group workspace members and assign permissions at the team level rather than individually. Available on Business and Enterprise plans.\n\nCreate a team from Settings > Team > Teams > New Team. Add members and assign team roles (team admin or team member). Team admins can manage team membership but do not gain elevated organization-level permissions.\n\nAssign resources to teams with read or write access. A user's effective access is the combination of their organization role and any team-based access. Team access can expand but not restrict what an organization role already grants.\n\nSCIM group sync maps identity provider groups to workspace teams. When a user is added to or removed from an IdP group, they are automatically added to or removed from the corresponding team."
+    },
+    {
+      "id": "doc-094",
+      "title": "Webhooks vs Polling",
+      "category": "API",
+      "content": "## Webhooks vs Polling: When to Use Which\n\nBoth approaches retrieve data from the platform but suit different use cases.\n\nPolling: your system calls the API at regular intervals to check for changes. Simple to implement, works behind firewalls that block inbound connections, and does not require a public endpoint. Downsides: latency is limited by your poll interval, and every poll consumes rate limit quota even when nothing has changed.\n\nWebhooks: the platform calls your endpoint when an event occurs. Near-real-time delivery, typically under one second. No wasted rate limit calls when there is no activity. Requires a publicly accessible HTTPS endpoint.\n\nUse polling when: you need data infrequently, your system is behind a firewall, or the latency of your poll interval is acceptable.\n\nUse webhooks when: you need low-latency notifications, high event volume would exhaust poll-based rate limits, or you are building real-time workflows."
+    },
+    {
+      "id": "doc-095",
+      "title": "GraphQL API",
+      "category": "API",
+      "content": "## GraphQL API\n\nA GraphQL API is available alongside the REST API. The endpoint is at /api/graphql and accepts POST requests with an application/json body containing a query field.\n\nAuthentication uses the same API key as the REST API via the Authorization header.\n\nThe GraphQL schema is introspectable. Use the developer console at the developer portal for an interactive explorer with autocomplete and inline documentation.\n\nGraphQL advantages: request exactly the fields you need (no over-fetching), batch multiple queries in one request, and use subscriptions for real-time updates.\n\nRate limiting for GraphQL is based on query complexity rather than request count. Each field has a cost assigned, and the total cost per request cannot exceed your plan's query budget. Complex queries may hit complexity limits even if request count is low."
+    },
+    {
+      "id": "doc-096",
+      "title": "Data Masking",
+      "category": "Security",
+      "content": "## Data Masking and Sensitive Fields\n\nFields containing sensitive information can be marked as sensitive from the field settings. Sensitive fields have additional access controls and display protections.\n\nMasking behavior: sensitive fields show only the last four characters to users without the View Sensitive Data permission. Admins and users explicitly granted view access see the full value. Masking applies in the UI, API responses, and exports.\n\nThe View Sensitive Data permission is available on Business and Enterprise plans. Add it to a custom role or grant it to specific users from Settings > Team > Permissions.\n\nAudit logging: every access to a sensitive field (read, write, export) is logged in the audit trail with the user, timestamp, and IP address.\n\nSensitive fields cannot be used as search or filter criteria by users without view permission."
+    },
+    {
+      "id": "doc-097",
+      "title": "API Client Libraries",
+      "category": "API",
+      "content": "## API Client Libraries\n\nOfficial client libraries are maintained for Python, Node.js (TypeScript), Ruby, Go, and Java.\n\nInstallation:\n- Python: pip install example-sdk\n- Node.js: npm install @example/sdk\n- Ruby: gem install example-sdk\n- Go: go get github.com/example/sdk-go\n\nAll libraries implement automatic retry with exponential backoff on 429 and 5xx responses, cursor-based pagination helpers, request signing, and type-safe response objects.\n\nLibraries are updated within one week of any API change. Pin to a specific major version in production to avoid breaking changes from major version bumps.\n\nFor languages without an official library, use the OpenAPI specification available at the developer portal to generate a client using tools like OpenAPI Generator."
+    },
+    {
+      "id": "doc-098",
+      "title": "Structured Logging for API Integrations",
+      "category": "API",
+      "content": "## Structured Logging for API Integrations\n\nFor production API integrations, structured logging is essential for debugging and observability. Every API response includes headers that should be captured in your logs.\n\nKey headers to log:\n- X-Request-ID: unique identifier for the request. Required when contacting support about a specific failure.\n- X-RateLimit-Remaining: requests remaining in the current window.\n- X-RateLimit-Reset: Unix timestamp when the rate limit window resets.\n- Retry-After: seconds to wait before retrying (only on 429 responses).\n\nLog at minimum: timestamp, request method and URL, response status code, X-Request-ID, and elapsed time.\n\nCorrelate your internal trace IDs with X-Request-ID by including your trace ID in the X-Correlation-ID request header. This flows through to our server logs, enabling end-to-end trace correlation."
+    },
+    {
+      "id": "doc-099",
+      "title": "Handling Concurrent Edits via API",
+      "category": "API",
+      "content": "## Handling Concurrent Edits via API\n\nWhen multiple systems or users update the same record concurrently, conflicts can occur. The platform uses optimistic concurrency control to detect and surface these conflicts.\n\nEvery record response includes an etag header. When updating a record, include the If-Match header with the etag value. If the record has been modified since you last fetched it, the update fails with HTTP 412 Precondition Failed.\n\nOn a 412: re-fetch the record to get the current state and etag, merge your intended changes with the current data, then retry the update with the new etag.\n\nFor integrations where conflicts are frequent, use the patch endpoint instead of the full update endpoint. PATCH applies field-level changes rather than replacing the full record, reducing the conflict surface area.\n\nIf you do not include an If-Match header, updates succeed regardless of concurrent changes (last write wins)."
+    },
+    {
+      "id": "doc-100",
+      "title": "Troubleshooting Integration Errors",
+      "category": "Integrations",
+      "content": "## Troubleshooting Integration Errors\n\nWhen an integration stops working, follow this diagnostic sequence before contacting support.\n\n1. Check the integration status in Settings > Integrations. A red indicator means the connection has failed.\n\n2. Open the integration error log. Each error entry includes a timestamp, the operation attempted, the HTTP status received, and the error response body.\n\n3. Common causes by error type:\n   - 401/403: OAuth token expired or revoked. Reconnect via OAuth flow.\n   - 404: Resource deleted in the third-party system.\n   - 422: Field mapping mismatch. The value format does not match what the third-party expects.\n   - 429: Rate limit hit on the third-party side. Reduce sync frequency.\n   - 5xx: Third-party system experiencing issues. Check their status page.\n\n4. If the error log is clear but sync is not happening, check the sync schedule and confirm the integration is not paused.\n\n5. Trigger a manual sync to observe behavior in real time.\n\nIf none of these steps identify the issue, contact support with the integration name, the error log entries, and the time the issue started."
+    }
+  ],
+  "tickets": [
+    {
+      "id": "ticket-001",
+      "subject": "Password reset email never arrived",
+      "body": "I requested a password reset 20 minutes ago and nothing has shown up in my inbox. I have checked spam and everything.",
+      "resolution": "We confirmed the email was sent to the address on file. The customer's corporate email server was rejecting automated messages due to a strict DMARC policy. We asked IT to allowlist our sending domain (mail.supportiq.io). The customer received the email within minutes after the allowlist was applied.",
+      "category": "Authentication",
+      "tags": [
+        "password-reset",
+        "email-delivery"
+      ]
+    },
+    {
+      "id": "ticket-002",
+      "subject": "Reset link says it has expired",
+      "body": "I got the reset link in my email but when I click it, it says the link has expired. I'm clicking it right now.",
+      "resolution": "The customer had requested three resets in quick succession. Only the most recently issued link is valid, and it had been overwritten by a subsequent request. We asked the customer to request one final reset and use that link without requesting any additional ones. The process completed successfully.",
+      "category": "Authentication",
+      "tags": [
+        "password-reset",
+        "expired-link"
+      ]
+    },
+    {
+      "id": "ticket-003",
+      "subject": "Account locked after forgotten password attempts",
+      "body": "My account got locked because I tried my password too many times. I also need to reset my password but the reset isn't working.",
+      "resolution": "We cleared the account lock from the admin panel. We then walked the customer through the correct sequence: first use the lock-cleared account to successfully request a password reset email, then follow the link. We advised them to attempt password reset only after the lock was confirmed cleared, which resolved the issue.",
+      "category": "Authentication",
+      "tags": [
+        "account-locked",
+        "password-reset"
+      ]
+    },
+    {
+      "id": "ticket-004",
+      "subject": "Admin reset my password but it's not working on login",
+      "body": "My admin said they reset my password for me but when I try the link they sent I get an error saying my password is invalid.",
+      "resolution": "Admin-initiated password resets generate a one-time link that forces the user to set a new password on first use. The customer had misread the flow and was entering the temporary link as a password. We clarified that clicking the link opens a form to set a new password, and the customer completed the process successfully.",
+      "category": "Authentication",
+      "tags": [
+        "password-reset",
+        "admin-reset"
+      ]
+    },
+    {
+      "id": "ticket-005",
+      "subject": "Lost my phone and can't get past 2FA",
+      "body": "I got a new phone and didn't transfer my authenticator app. Now I can't log in because it keeps asking for the 2FA code I don't have.",
+      "resolution": "We asked the customer for their backup codes. They did not have them saved. We escalated to their organization admin to verify identity through an internal process. Once verified, the admin contacted us to confirm the identity, and we disabled 2FA on the account. The customer was advised to immediately re-enable 2FA on their new device and securely store backup codes this time.",
+      "category": "Authentication",
+      "tags": [
+        "2fa",
+        "locked-out",
+        "backup-codes"
+      ]
+    },
+    {
+      "id": "ticket-006",
+      "subject": "2FA codes are being rejected even when they look correct",
+      "body": "I'm entering the 6-digit code from my authenticator app and it says it's wrong. I double-checked the code is current and hasn't expired.",
+      "resolution": "The issue was clock drift on the customer's phone. The TOTP algorithm requires the device clock to be within 30 seconds of the server clock. The customer's phone was 2 minutes slow. We asked them to enable automatic time sync in the phone's date/time settings. After the phone time corrected, the codes were accepted.",
+      "category": "Authentication",
+      "tags": [
+        "2fa",
+        "totp",
+        "clock-drift"
+      ]
+    },
+    {
+      "id": "ticket-007",
+      "subject": "How do I move my 2FA to a new authenticator app?",
+      "body": "I want to switch from Google Authenticator to Authy. How do I do that without losing access to my account?",
+      "resolution": "We explained that you cannot simply re-scan the original QR code because it is no longer shown after initial setup. The correct process is to go to Account Settings > Security, disable 2FA (which requires confirming with a current code), and then re-enable it. During re-enable, a new QR code is displayed that can be scanned into Authy. We advised the customer to complete this while they still have access to their old app.",
+      "category": "Authentication",
+      "tags": [
+        "2fa",
+        "authenticator-app",
+        "migration"
+      ]
+    },
+    {
+      "id": "ticket-008",
+      "subject": "Organization enforces 2FA but I can't disable it",
+      "body": "I want to turn off 2FA but I don't see the option in my settings. It looks like it might be greyed out.",
+      "resolution": "The customer's organization admin had enforced 2FA at the organization level, which prevents individual users from disabling it. We confirmed this was the case and explained that only the organization admin can lift or change this policy. We provided the customer with the admin's contact details from the organization settings and advised them to discuss the policy with their admin.",
+      "category": "Authentication",
+      "tags": [
+        "2fa",
+        "org-policy",
+        "admin"
+      ]
+    },
+    {
+      "id": "ticket-009",
+      "subject": "API key is being rejected with 401 error",
+      "body": "I just generated a new API key and put it in my request header but I'm getting a 401 Unauthorized response. The key looks correct.",
+      "resolution": "The customer was including the API key directly in the Authorization header without the 'Bearer' prefix. The correct format is `Authorization: Bearer YOUR_API_KEY`. After updating the header format in their code, the request succeeded. We also suggested they use the API reference in the developer docs which includes a code example for each language.",
+      "category": "API",
+      "tags": [
+        "api-key",
+        "authentication",
+        "401"
+      ]
+    },
+    {
+      "id": "ticket-010",
+      "subject": "Lost my API key \u2014 only last 4 digits visible",
+      "body": "I forgot to copy my API key after generating it. Now I can only see the last 4 characters. Can you show me the full key?",
+      "resolution": "For security reasons, we cannot retrieve or display full API keys after they have been created \u2014 only the last four characters are ever stored. We guided the customer to revoke the existing key from Developer Settings and generate a new one. We emphasized the importance of copying and securely storing the key immediately after generation, as this is the only opportunity to view it in full.",
+      "category": "API",
+      "tags": [
+        "api-key",
+        "lost-key",
+        "security"
+      ]
+    },
+    {
+      "id": "ticket-011",
+      "subject": "How do I rotate an API key without causing downtime?",
+      "body": "We need to rotate our API key for security reasons but our integration is running 24/7 and we can't have any downtime.",
+      "resolution": "We walked the customer through the zero-downtime rotation process: generate a new key in Developer Settings (the old key remains active), update the integration to use the new key in a deployment, verify the new key is working in production, then revoke the old key. Both keys can be active simultaneously for as long as needed during the transition. This approach avoids any downtime because the old key only gets revoked after the new one is confirmed working.",
+      "category": "API",
+      "tags": [
+        "api-key",
+        "key-rotation",
+        "zero-downtime"
+      ]
+    },
+    {
+      "id": "ticket-012",
+      "subject": "OAuth token expired after 1 hour \u2014 do I need to re-authenticate?",
+      "body": "Our OAuth access token expired and now our integration is broken. Do users need to log in again every hour?",
+      "resolution": "Access tokens expire after one hour by design, but users do not need to re-authenticate. The OAuth flow also issues a refresh token valid for 90 days. The integration should detect a 401 response, use the stored refresh token to request a new access token from the token endpoint, and retry the original request with the new token. We shared a code snippet showing the refresh flow for their SDK. If the refresh token itself expires (90 days of inactivity), a one-time re-authentication is required.",
+      "category": "API",
+      "tags": [
+        "oauth",
+        "token-refresh",
+        "authentication"
+      ]
+    },
+    {
+      "id": "ticket-013",
+      "subject": "Getting 429 errors under normal load",
+      "body": "We're hitting rate limit errors but our request volume should be well within the Growth plan limits. Something seems wrong.",
+      "resolution": "On investigation, the customer's service had multiple instances running, each making requests with the same API key. The rate limit is applied per key, so the combined traffic from all instances was exceeding the per-minute limit. We recommended either distributing traffic across multiple keys (each scoped appropriately) or implementing a centralized rate-limiting layer in their architecture. We also pointed them to the `X-RateLimit-Remaining` header they can monitor to track usage in real time.",
+      "category": "API",
+      "tags": [
+        "rate-limiting",
+        "429",
+        "multiple-instances"
+      ]
+    },
+    {
+      "id": "ticket-014",
+      "subject": "What is the right backoff strategy for 429 errors?",
+      "body": "Our integration sometimes hits rate limits and just crashes. We want to implement proper retry logic.",
+      "resolution": "We recommended exponential backoff with jitter: wait base * 2^attempt seconds (capped at 60 seconds), plus a small random jitter (0-0.5 seconds) to prevent synchronized retries across multiple instances. Always read the `Retry-After` response header first \u2014 if it's present, use that value instead of computing your own. After five consecutive failures, surface the error to your application layer rather than retrying indefinitely. We also pointed the customer to the bulk endpoints which have more favorable rate limits for high-volume scenarios.",
+      "category": "API",
+      "tags": [
+        "rate-limiting",
+        "backoff",
+        "retry-logic"
+      ]
+    },
+    {
+      "id": "ticket-015",
+      "subject": "429 errors even after waiting the Retry-After time",
+      "body": "I'm respecting the Retry-After header but I'm still getting 429s immediately when I retry. Why?",
+      "resolution": "The customer was applying the Retry-After delay only to the failed request and resuming full traffic volume on all other requests simultaneously. The rate limit window had not fully reset because other concurrent requests were still consuming quota. We explained that Retry-After applies to the entire API key's traffic, not just the single failed request. The integration needed to pause all outgoing requests for the Retry-After duration before resuming. After implementing this correctly, the 429s stopped.",
+      "category": "API",
+      "tags": [
+        "rate-limiting",
+        "429",
+        "retry-after"
+      ]
+    },
+    {
+      "id": "ticket-016",
+      "subject": "500 errors with no useful information in the response body",
+      "body": "We keep getting intermittent 500 errors from the API. The response body just says 'internal error' and there's no other info.",
+      "resolution": "We asked the customer to capture and share the `request_id` header from the failing responses. With that ID, we located the server-side logs and identified the root cause: a downstream dependency was timing out under heavy load during a specific time window. We applied a fix on the backend and confirmed the errors stopped. We also reminded the customer to always log the `request_id` header in their own error logs, as it dramatically speeds up diagnosis.",
+      "category": "API",
+      "tags": [
+        "500-error",
+        "request-id",
+        "debugging"
+      ]
+    },
+    {
+      "id": "ticket-017",
+      "subject": "Getting 403 even though my API key should have write access",
+      "body": "I can read data fine but when I try to create a record I get a 403 Forbidden. My key should have write access.",
+      "resolution": "The customer had generated their API key with only the `read:data` scope selected. Write operations require the `write:data` scope. Since scopes cannot be added to an existing key, we guided the customer to generate a new key with both `read:data` and `write:data` scopes selected. After updating their integration to use the new key, write operations succeeded.",
+      "category": "API",
+      "tags": [
+        "api-key",
+        "scopes",
+        "403"
+      ]
+    },
+    {
+      "id": "ticket-018",
+      "subject": "What does error code 'unprocessable' mean?",
+      "body": "I'm getting an HTTP 422 with error code 'unprocessable' but the message doesn't say what's wrong.",
+      "resolution": "The 422 unprocessable error means the request is syntactically valid JSON but semantically invalid \u2014 a field has an unexpected value or a business rule is violated. We directed the customer to check the `details` field in the error response body, which contains field-level error messages. In their case, the `start_date` they were sending was after the `end_date`, which the API rejects. After correcting the field values, the request succeeded.",
+      "category": "API",
+      "tags": [
+        "422",
+        "error-codes",
+        "validation"
+      ]
+    },
+    {
+      "id": "ticket-019",
+      "subject": "Where can I find my invoices?",
+      "body": "I need to download invoices for our accounting department. I can't find where they are in the dashboard.",
+      "resolution": "Invoices are located in Settings > Billing > Invoices. Only users with the Admin or Billing Manager role can access this section. We confirmed the customer had the correct role, then walked them through the navigation. Once there, they could see all historical invoices and download PDFs. We also mentioned that invoices are generated within 24 hours of a successful payment, so very recent payments may not yet have an invoice.",
+      "category": "Billing",
+      "tags": [
+        "invoices",
+        "billing",
+        "pdf-download"
+      ]
+    },
+    {
+      "id": "ticket-020",
+      "subject": "Invoice shows wrong company name and address",
+      "body": "Our company recently changed its legal name and our invoices still show the old name. We need this corrected.",
+      "resolution": "We directed the customer to update the legal name and billing address in Settings > Billing > Details. We explained that this change applies to future invoices only \u2014 past invoices are finalized and cannot be retroactively amended. For their accounting records on past invoices, we suggested issuing a supporting memo from their finance team, as this is standard practice for name-change situations. The updated details appeared correctly on their next monthly invoice.",
+      "category": "Billing",
+      "tags": [
+        "invoices",
+        "billing-details",
+        "company-name"
+      ]
+    },
+    {
+      "id": "ticket-021",
+      "subject": "VAT not being applied even though we're based in Germany",
+      "body": "We're a German company and our invoices don't show any VAT. Is this correct?",
+      "resolution": "We checked the customer's account and found they had entered a valid VAT registration number in Settings > Billing > Tax Information. Because they provided a valid VAT ID, our system correctly applies the reverse-charge mechanism and does not charge VAT \u2014 the customer is responsible for reporting it through their own VAT return. We explained this is correct EU B2B practice. We also sent a written explanation they could provide to their accountant.",
+      "category": "Billing",
+      "tags": [
+        "vat",
+        "invoices",
+        "eu-billing"
+      ]
+    },
+    {
+      "id": "ticket-022",
+      "subject": "Invoice for last month hasn't arrived yet",
+      "body": "Our monthly invoice usually arrives on the 5th but it's now the 7th and we haven't received it.",
+      "resolution": "The customer's payment method had failed on the billing date, which put the invoice in 'open' status and delayed the PDF email notification. We found a charge failure for an expired credit card. We asked the customer to update their payment method in Settings > Billing > Payment Methods and then manually retry the charge from the Invoices page. After the retry succeeded, the invoice PDF was generated and emailed within 24 hours.",
+      "category": "Billing",
+      "tags": [
+        "invoices",
+        "payment-failure",
+        "billing-cycle"
+      ]
+    },
+    {
+      "id": "ticket-023",
+      "subject": "Can I get a refund after cancelling my annual plan?",
+      "body": "We cancelled our annual subscription last week, about 3 months into the year. We expected a prorated refund but haven't heard anything.",
+      "resolution": "Annual plan cancellations within the first 60 days are eligible for a prorated refund minus a 10% early-termination fee. Since this customer was at the 3-month mark (approximately 90 days), they were past the 60-day window and the annual plan was non-refundable. We explained the policy clearly and provided the exact text from the Terms of Service. We offered to ensure access continued through the full paid annual period. The customer was disappointed but accepted the explanation.",
+      "category": "Billing",
+      "tags": [
+        "refund",
+        "cancellation",
+        "annual-plan"
+      ]
+    },
+    {
+      "id": "ticket-024",
+      "subject": "Charged twice this month",
+      "body": "I see two charges on my credit card statement from you this month. I only have one subscription.",
+      "resolution": "We reviewed the billing history and identified that the customer had upgraded from the Growth to Business plan mid-cycle. The proration generated an immediate charge for the Business plan's incremental cost for the remaining days of the cycle. Combined with the regular monthly charge already collected, this appeared as two charges. We explained the proration mechanic in detail and confirmed neither charge was erroneous. We also suggested they review the billing estimate preview shown before any plan change, which would have previewed this.",
+      "category": "Billing",
+      "tags": [
+        "billing",
+        "proration",
+        "plan-upgrade"
+      ]
+    },
+    {
+      "id": "ticket-025",
+      "subject": "How do I request a refund for my monthly plan?",
+      "body": "I signed up 3 days ago and realized this product isn't the right fit for my team. I'd like a refund.",
+      "resolution": "The customer was within the 7-day refund window for new monthly plan subscribers and was fully eligible for a refund. We processed the refund immediately from the billing portal and confirmed it would appear on their credit card statement within 5-10 business days. We cancelled the subscription at the same time so no future charges would occur. We also asked for feedback on why the product wasn't the right fit, which the customer kindly provided.",
+      "category": "Billing",
+      "tags": [
+        "refund",
+        "cancellation",
+        "7-day-window"
+      ]
+    },
+    {
+      "id": "ticket-026",
+      "subject": "How do I export all my data as CSV?",
+      "body": "We're doing an audit and need all of our data exported in a format we can open in Excel.",
+      "resolution": "We directed the customer to Settings > Data > Export and walked them through selecting CSV format and the date range for their audit. We noted that nested objects in the data would be serialized as JSON strings within CSV cells \u2014 for most audit use cases this is fine, but we mentioned the JSON export option if they needed the full nested structure. The export job completed within a few minutes and a download link was sent to their email.",
+      "category": "Data Management",
+      "tags": [
+        "data-export",
+        "csv",
+        "audit"
+      ]
+    },
+    {
+      "id": "ticket-027",
+      "subject": "Export download link expired before I could download it",
+      "body": "I received the export email but I didn't download it right away and now the link says it's expired.",
+      "resolution": "Export download links expire after 7 days as a security measure \u2014 they should not remain accessible indefinitely in email. We initiated a new export job for the same parameters, which completed within 5 minutes. We sent the new download link and asked the customer to download it promptly. For large exports that they need to retain long-term, we recommended setting up scheduled exports to an S3 bucket, where the files persist under their own retention policy.",
+      "category": "Data Management",
+      "tags": [
+        "data-export",
+        "expired-link",
+        "download"
+      ]
+    },
+    {
+      "id": "ticket-028",
+      "subject": "Export job stuck in 'processing' for 3 hours",
+      "body": "I started a data export this morning and it still says 'processing'. The status hasn't changed in 3 hours.",
+      "resolution": "We checked the export job status on the backend. The job had actually completed successfully but a bug in the status webhook caused the UI to remain stuck on 'processing'. The download link had been generated and was accessible via the Export History page even though the status badge showed incorrectly. We directed the customer to Export History to retrieve their link and filed an internal bug for the status display issue. A fix was deployed the same day.",
+      "category": "Data Management",
+      "tags": [
+        "data-export",
+        "processing-status",
+        "bug"
+      ]
+    },
+    {
+      "id": "ticket-029",
+      "subject": "Can I schedule weekly exports to our S3 bucket?",
+      "body": "We want to automatically receive a data export every week without having to manually trigger it.",
+      "resolution": "Scheduled exports are supported. We walked the customer through Settings > Data > Export > Schedule, where they could select weekly frequency, choose the format (JSON or CSV), and enter their S3 bucket details including region and IAM credentials. We advised them to use an IAM user with only s3:PutObject permission on the specific bucket path \u2014 no broader permissions are needed. After they configured it, we triggered a test write from the UI to confirm the credentials worked before the first scheduled run.",
+      "category": "Data Management",
+      "tags": [
+        "data-export",
+        "scheduled-exports",
+        "s3"
+      ]
+    },
+    {
+      "id": "ticket-030",
+      "subject": "Large export split into multiple files \u2014 which order do I combine them?",
+      "body": "My export came as 12 separate files. How do I know the order they go in and how to combine them?",
+      "resolution": "For exports split into multiple files, each filename includes a sequential part number: `export_2024-01-01_part001.json`, `export_2024-01-01_part002.json`, and so on. They are already sorted and numbered in the correct order. To recombine JSON exports, concatenate the arrays from each file. For CSV, concatenate the files with the header row from the first file only. We shared a short Python snippet for combining them. We also noted that Parquet files can be read as a directory by tools like DuckDB without needing to manually combine them.",
+      "category": "Data Management",
+      "tags": [
+        "data-export",
+        "large-export",
+        "multipart"
+      ]
+    },
+    {
+      "id": "ticket-031",
+      "subject": "Need to give a contractor view-only access",
+      "body": "We have an external auditor who needs to see our data but shouldn't be able to change anything. What role do I assign?",
+      "resolution": "The Viewer role is exactly what the customer needed. Viewers have read-only access to all data and reports but cannot create, edit, or delete anything. We walked the customer through Settings > Team > Invite Members, entering the auditor's email and selecting the Viewer role. The invitation email was sent, and after the auditor accepted, we confirmed from the Team page that their role showed as Viewer. We also noted that the auditor will be counted as a seat only if they are on a paid plan.",
+      "category": "Team Management",
+      "tags": [
+        "roles",
+        "permissions",
+        "viewer",
+        "contractor"
+      ]
+    },
+    {
+      "id": "ticket-032",
+      "subject": "Admin accidentally removed the only other admin",
+      "body": "I removed my co-admin from the team by mistake. Now I'm the only admin left. Is there anything I can do?",
+      "resolution": "Since the customer was still an admin themselves, they could re-invite the removed user from Settings > Team > Invite Members and assign them the Admin role again. The invited user would need to accept the invitation. We confirmed there is no 'undo' for removal \u2014 re-inviting is the correct path. We also pointed out that the platform prevents an admin from removing themselves if they are the last admin, as a safeguard, but this does not apply to removing other admins.",
+      "category": "Team Management",
+      "tags": [
+        "roles",
+        "admin",
+        "team-management"
+      ]
+    },
+    {
+      "id": "ticket-033",
+      "subject": "Member can't see the billing section",
+      "body": "One of our team members needs to view invoices but they say they can't see the billing section at all.",
+      "resolution": "The Billing section in Settings is restricted to Admin and Billing Manager roles. The customer's team member had the Member role, which does not include billing access by design. The customer had two options: upgrade the team member to Admin (which grants full access, not just billing) or, if on the Business plan, create a custom Billing Manager role with only billing permissions. We described both options and the customer chose to create a custom role.",
+      "category": "Team Management",
+      "tags": [
+        "roles",
+        "permissions",
+        "billing-access"
+      ]
+    },
+    {
+      "id": "ticket-034",
+      "subject": "How does role change affect a user who is currently logged in?",
+      "body": "If I change someone's role from Admin to Member right now while they're actively using the app, what happens?",
+      "resolution": "Role changes take effect immediately on the server side. The affected user will see their permissions change on their next page load \u2014 they do not need to log out and back in. If they try to access an Admin-only feature before their page refreshes, they will receive a 403 Forbidden error, which will prompt a page reload that picks up the new role. We advised the customer that it's courteous to notify the user before downgrading their role, but technically no coordination is required.",
+      "category": "Team Management",
+      "tags": [
+        "roles",
+        "permissions",
+        "live-session"
+      ]
+    },
+    {
+      "id": "ticket-035",
+      "subject": "Invite expired before new member could accept",
+      "body": "I invited a new teammate a week and a half ago and they just told me they never saw the email. The invite link they got is expired.",
+      "resolution": "Team invitations expire after 7 days. We guided the customer to Settings > Team > Pending Invitations, where the expired invite was still listed. They could resend the invite directly from that view, which generates a fresh 7-day link. We also suggested the customer first check that the email address in the pending invite was spelled correctly \u2014 in this case it was correct, and the email had gone to the recipient's spam folder. After resending and the recipient checking spam, they accepted successfully.",
+      "category": "Team Management",
+      "tags": [
+        "invitations",
+        "expired-invite",
+        "team-management"
+      ]
+    },
+    {
+      "id": "ticket-036",
+      "subject": "Integration setup \u2014 what's the checklist for a new account?",
+      "body": "We just signed up and I want to make sure we don't miss any important setup steps. Is there an onboarding guide?",
+      "resolution": "We directed the customer to the Onboarding Checklist in the Help Center, which covers all 10 steps from email verification through team invites. We also walked through the most commonly missed steps: enabling 2FA, configuring notification preferences, and setting up SSO before inviting large numbers of users (to avoid mixed authentication states). We offered to schedule a 30-minute onboarding call, which the customer accepted.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "setup",
+        "checklist"
+      ]
+    },
+    {
+      "id": "ticket-037",
+      "subject": "Invited teammates but they say they got no email",
+      "body": "I sent invites to 5 teammates and none of them received the invitation email.",
+      "resolution": "We checked the delivery logs and confirmed all five invitation emails were sent successfully from our side. The issue was that the customer's organization used a strict email allowlist managed by their IT department. All external emails were blocked by default. We provided the customer with our sending domain (mail.supportiq.io) and asked them to have IT add it to the allowlist. After the allowlist was updated, we resent all five invites and they arrived within minutes.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "invitations",
+        "email-delivery"
+      ]
+    },
+    {
+      "id": "ticket-038",
+      "subject": "Can't complete onboarding \u2014 email not verified",
+      "body": "Some features are greyed out and I keep seeing a banner about verifying my email. I clicked the verify link but it didn't work.",
+      "resolution": "The customer's verification link had expired (they had clicked it 3 days after receiving it). We resent a new verification email from the Admin panel. The customer checked their inbox, clicked the fresh link immediately, and the features became available right away. We also noted that the verification email can be resent by the user from Account Settings > Profile if they ever need to trigger it themselves.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "email-verification",
+        "feature-gate"
+      ]
+    },
+    {
+      "id": "ticket-039",
+      "subject": "Confused about where to start with first integration",
+      "body": "I'm new to the platform and I want to connect our database. I have the credentials but I don't know where to go.",
+      "resolution": "We directed the customer to the Integrations page from the main navigation sidebar. Database connections are under the 'Data Sources' category. The customer needed the host, port, username, password, and database name. We walked through each field in the connection form. After entering the credentials, we used the 'Test Connection' button, which confirmed the connection worked. We then explained how to run a first query to verify data was flowing correctly.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "integrations",
+        "database-connection"
+      ]
+    },
+    {
+      "id": "ticket-040",
+      "subject": "Zapier integration not showing our account events",
+      "body": "I set up the Zapier integration but when I try to create a Zap I don't see any of the trigger events we need.",
+      "resolution": "The Zapier integration uses polling-based triggers, which means it checks for new events at intervals rather than receiving them in real time. The events the customer was looking for were available but only appear after the first poll cycle runs (approximately every 15 minutes). We also confirmed that the trigger events needed were part of the Growth plan, which the customer was on. After waiting one polling cycle, the triggers appeared as expected in the Zapier UI.",
+      "category": "Integrations",
+      "tags": [
+        "zapier",
+        "integrations",
+        "trigger-events"
+      ]
+    },
+    {
+      "id": "ticket-041",
+      "subject": "Slack notifications stopped after we changed Slack workspace",
+      "body": "We moved to a new Slack workspace and now we're not getting any notifications. The integration appears connected.",
+      "resolution": "The integration was connected to the old workspace. Even though the UI showed a 'connected' status, the OAuth token was specific to the original workspace and was invalid for the new one. We guided the customer to Settings > Integrations > Slack, clicked 'Disconnect', and then reconnected by clicking 'Connect' which triggered the Slack OAuth flow for the new workspace. After reconnecting, we reconfigured the channel mappings and notifications resumed.",
+      "category": "Integrations",
+      "tags": [
+        "slack",
+        "integrations",
+        "oauth"
+      ]
+    },
+    {
+      "id": "ticket-042",
+      "subject": "Salesforce sync keeps failing for some records",
+      "body": "Our Salesforce integration syncs most records fine but about 5% fail every run. The error log just says 'field mapping error'.",
+      "resolution": "We reviewed the integration error log entries with the customer and identified that the failing records had a custom field in Salesforce that was not mapped in the integration settings. Field mapping is configured in Settings > Integrations > Salesforce > Field Mapping. The custom field needed to be added to the mapping manually. After adding it and running a manual sync, the failure rate dropped to zero. We also showed the customer how to set up failure alert notifications so they are proactively informed of sync errors.",
+      "category": "Integrations",
+      "tags": [
+        "salesforce",
+        "integrations",
+        "field-mapping"
+      ]
+    },
+    {
+      "id": "ticket-043",
+      "subject": "Integration shows 'disconnected' status with no explanation",
+      "body": "Our third-party integration started showing 'disconnected' with no warning. We haven't changed anything.",
+      "resolution": "The disconnected status is typically caused by an OAuth token being revoked or expiring on the third-party side. In this case, the customer's Salesforce admin had rotated the OAuth credentials for the integration user in Salesforce, which invalidated the token stored in our system. We guided the customer to click 'Reconnect' in the integration settings, which initiated a fresh OAuth flow with the updated Salesforce credentials. After reconnecting, sync resumed automatically at the next scheduled interval.",
+      "category": "Integrations",
+      "tags": [
+        "integrations",
+        "oauth",
+        "disconnected"
+      ]
+    },
+    {
+      "id": "ticket-044",
+      "subject": "Webhook isn't receiving events \u2014 all deliveries failing",
+      "body": "I set up a webhook endpoint but none of the events are coming through. The delivery log shows failures.",
+      "resolution": "We reviewed the delivery log and the failures showed HTTP 403 responses from the customer's endpoint. Their server had a firewall rule that blocked requests from our IP ranges. We provided the customer with our static egress IP list (documented in the developer docs under Webhook Security) and asked them to allowlist those IPs. After the firewall was updated, we manually triggered a test ping from the webhook settings, which succeeded, and subsequent events delivered normally.",
+      "category": "Integrations",
+      "tags": [
+        "webhook",
+        "firewall",
+        "delivery-failure"
+      ]
+    },
+    {
+      "id": "ticket-045",
+      "subject": "How do I verify the webhook signature in Python?",
+      "body": "I'm receiving webhook events but I want to verify the signature to make sure they're coming from you. How do I do that in Python?",
+      "resolution": "We provided the customer with a Python code snippet: use `hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()` and compare it to the `X-Signature-SHA256` header value. The key point we emphasized is to use `hmac.compare_digest()` for the comparison rather than `==` to prevent timing attacks. We also reminded them that the signature is computed over the raw request body bytes, not a parsed JSON object, so they should read the body before parsing it.",
+      "category": "Integrations",
+      "tags": [
+        "webhook",
+        "signature-verification",
+        "python"
+      ]
+    },
+    {
+      "id": "ticket-046",
+      "subject": "Webhook was auto-disabled \u2014 how do I re-enable it?",
+      "body": "I got an email saying my webhook was disabled. I fixed the endpoint issue. How do I turn it back on?",
+      "resolution": "Webhooks that fail consistently for 48 hours are automatically disabled to reduce unnecessary traffic to unavailable endpoints. To re-enable it, go to Settings > Integrations > Webhooks, find the disabled webhook (it will show a 'Disabled' badge), and click 'Enable'. We also recommended first using the 'Send Test Ping' button to confirm the endpoint is responding correctly before re-enabling, so you do not restart the automatic-disable clock immediately.",
+      "category": "Integrations",
+      "tags": [
+        "webhook",
+        "auto-disabled",
+        "re-enable"
+      ]
+    },
+    {
+      "id": "ticket-047",
+      "subject": "SSO login fails with 'audience mismatch' error",
+      "body": "We set up SSO but when users try to log in through Okta they get an 'audience mismatch' error.",
+      "resolution": "The 'audience mismatch' error in SAML means the Entity ID in the SAML assertion from Okta did not match the Entity ID we expected. The customer had manually typed our Entity ID in Okta rather than copying it from our SSO settings page. There was a single extra slash at the end of the URL they had entered. We asked them to copy the Entity ID directly from Settings > Security > SSO and update it in Okta. After saving and retesting, SSO login worked correctly.",
+      "category": "Authentication",
+      "tags": [
+        "sso",
+        "saml",
+        "entity-id"
+      ]
+    },
+    {
+      "id": "ticket-048",
+      "subject": "New SSO users created with wrong role",
+      "body": "Users who log in via SSO are all being created as Members, but we want them to be Viewers by default.",
+      "resolution": "When no `role` attribute is included in the SAML assertion, new users default to the Member role. To change this, the customer had two options: configure the `role` attribute in the SAML assertion from their IdP to explicitly set the role, or change the default SSO role from Settings > Security > SSO > Default User Role. The customer chose to set the default to Viewer in the SSO settings, which required no changes on the IdP side. New SSO logins after that were created as Viewers.",
+      "category": "Authentication",
+      "tags": [
+        "sso",
+        "saml",
+        "user-roles"
+      ]
+    },
+    {
+      "id": "ticket-049",
+      "subject": "SSO setup test fails with 'clock skew' error",
+      "body": "When I test the SSO configuration it immediately fails with a message about clock skew. Our IdP is Okta.",
+      "resolution": "SAML assertions include timestamps with a short validity window (typically 5 minutes). If the server clock on either side is out of sync by more than that window, assertion validation fails. The customer's Okta instance was running on a server whose clock had drifted 7 minutes. We recommended checking the Okta system status and contacting Okta support to correct the clock sync. As a temporary workaround, we extended our tolerance window to 10 minutes from Settings > Security > SSO > Advanced. Once Okta corrected the clock, the tolerance was returned to normal.",
+      "category": "Authentication",
+      "tags": [
+        "sso",
+        "saml",
+        "clock-skew"
+      ]
+    },
+    {
+      "id": "ticket-050",
+      "subject": "SSO users can't set a local password",
+      "body": "Some of our team members that we invited through SSO are asking how to set a password so they can log in without SSO if needed.",
+      "resolution": "This is expected behavior for SSO-provisioned accounts. When an organization has SSO configured and enforced, SSO-provisioned users are not allowed to set a local password \u2014 authentication must go through the IdP. This is a security feature to ensure all access goes through the centralized identity provider where access revocation is managed. If the customer needs fallback access for emergency situations (e.g., IdP outage), they should consult their IdP vendor's availability documentation rather than creating local password fallbacks.",
+      "category": "Authentication",
+      "tags": [
+        "sso",
+        "local-password",
+        "authentication"
+      ]
+    },
+    {
+      "id": "ticket-051",
+      "subject": "API responses are extremely slow \u2014 10+ second latency",
+      "body": "Our integration has been seeing API response times of 10-15 seconds for the past two days. It was much faster before.",
+      "resolution": "We reviewed the performance metrics for the customer's queries and identified that they were making unbounded queries against a table that had grown to 50 million rows over the past month. The lack of a date filter or row limit meant each query was scanning the entire table. We recommended adding a `created_after` filter to limit the query to a relevant time window and enabling server-side pagination using the `limit` and `cursor` parameters. After implementing these changes, response times dropped to under 300ms.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "slow-queries",
+        "optimization"
+      ]
+    },
+    {
+      "id": "ticket-052",
+      "subject": "Getting 504 timeout errors on large data operations",
+      "body": "When I run our nightly data processing job via the API I keep getting 504 gateway timeouts. It worked fine a few months ago.",
+      "resolution": "API requests that take longer than 30 seconds are terminated with a 504. The customer's dataset had grown over time, making the synchronous operation too slow. We recommended migrating to the async bulk processing endpoint: submit the job, receive a job ID, and poll `/jobs/{id}/status` until complete. We provided a code example in Python for the async pattern. The job now runs asynchronously with no timeout risk, and the customer receives the result when it is ready rather than blocking.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "504-timeout",
+        "async"
+      ]
+    },
+    {
+      "id": "ticket-053",
+      "subject": "How do I enable query profiling to see what's slow?",
+      "body": "Our requests are slower than expected and I want to understand where the time is being spent.",
+      "resolution": "We guided the customer to Settings > Developer > Profiling and enabled query profiling for their account. Once enabled, every API response includes extra headers: `X-Timing-DB` (milliseconds in the database), `X-Timing-Serialize` (serialization time), and `X-Timing-Network` (estimated network overhead). We showed the customer how to compare these headers between a slow request and a fast one to isolate the bottleneck. Their specific issue was high `X-Timing-Serialize` time, indicating too many fields being requested \u2014 they switched to field selection using the `fields` query parameter, which resolved it.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "profiling",
+        "debugging"
+      ]
+    },
+    {
+      "id": "ticket-054",
+      "subject": "High CPU on our server correlates with API polling loop",
+      "body": "We're polling the API every 2 seconds to check for new events and our server's CPU usage has spiked. Is there a better way?",
+      "resolution": "Polling at 2-second intervals generates significant load on both the customer's server and our API, and it is rarely necessary with proper webhook support. We recommended replacing the polling loop with webhooks: configure a webhook subscription for the event types they care about, and our system will push events to their endpoint within seconds of them occurring. This eliminates the polling loop entirely. We also noted that high-frequency polling can trigger rate limiting on their API key. After switching to webhooks, their CPU usage dropped substantially.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "polling",
+        "webhooks"
+      ]
+    },
+    {
+      "id": "ticket-055",
+      "subject": "N+1 query pattern is causing thousands of API calls",
+      "body": "Our integration makes one API call to get a list of records and then one more call per record to get details. This adds up to thousands of calls.",
+      "resolution": "This is a classic N+1 pattern. We pointed the customer to our bulk fetch endpoint: instead of calling `/records/{id}` for each item, they can call `/records?ids=id1,id2,id3,...` with up to 100 IDs per call. This reduces thousands of API calls to dozens. We shared the API reference section on bulk operations and a code example showing how to batch the IDs from the initial list response. After implementing this, the customer's total API calls per sync cycle dropped from ~4,000 to ~40.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "n+1",
+        "bulk-api"
+      ]
+    },
+    {
+      "id": "ticket-056",
+      "subject": "Indexes missing after data migration",
+      "body": "We migrated our data to a new workspace and now queries that were fast before are extremely slow.",
+      "resolution": "When data is migrated to a new workspace, indexes from the source workspace are not automatically carried over. The customer needed to recreate them in Settings > Data > Indexes in the new workspace. We helped them identify which fields had been indexed in the old workspace by reviewing the query profiling results from before the migration (which they had kept in their logs). After recreating the indexes \u2014 primarily on `created_at`, `status`, and a custom ID field \u2014 query performance returned to the previous baseline.",
+      "category": "Technical",
+      "tags": [
+        "performance",
+        "indexes",
+        "data-migration"
+      ]
+    },
+    {
+      "id": "ticket-057",
+      "subject": "What should I do first when setting up a new account?",
+      "body": "We just created our company account. There are a lot of settings and I don't know what's important to do first.",
+      "resolution": "We walked the customer through the priority order: (1) verify the organization admin email, (2) set up SSO if the company uses an identity provider \u2014 this must be done before inviting many users, (3) configure 2FA policy for the organization, (4) invite team members with appropriate roles, (5) connect the first data source or integration, and (6) configure notification preferences. We also shared the link to the Onboarding Checklist in the Help Center which documents all ten steps in detail.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "account-setup",
+        "getting-started"
+      ]
+    },
+    {
+      "id": "ticket-058",
+      "subject": "Can't find where to enable SSO \u2014 is it on my plan?",
+      "body": "I want to set up SSO for our team but I can't find it in the security settings.",
+      "resolution": "SSO/SAML is available on the Business and Enterprise plans. The customer was on the Growth plan, which does not include SSO. The SSO option in Settings > Security is hidden entirely for plans that do not support it. We confirmed the plan level and explained the feature gating. We also provided a comparison of what's included on each plan and mentioned that upgrading to Business would immediately unlock the SSO setup flow. The customer decided to upgrade.",
+      "category": "Getting Started",
+      "tags": [
+        "onboarding",
+        "sso",
+        "plan-features"
+      ]
+    },
+    {
+      "id": "ticket-059",
+      "subject": "Salesforce sync frequency \u2014 what's the minimum interval?",
+      "body": "We need near-real-time sync with Salesforce. What's the fastest sync schedule we can configure?",
+      "resolution": "The minimum sync interval for scheduled Salesforce sync is 15 minutes. For use cases requiring faster propagation, we recommended supplementing the scheduled sync with event-driven updates: configure Salesforce Process Builder or Flow to call our webhook endpoint whenever a relevant record changes. This can achieve effective latency of under a minute. We shared the webhook endpoint URL and authentication requirements. The customer implemented the hybrid approach and achieved the near-real-time sync they needed.",
+      "category": "Integrations",
+      "tags": [
+        "salesforce",
+        "sync-frequency",
+        "webhooks"
+      ]
+    },
+    {
+      "id": "ticket-060",
+      "subject": "Webhook signature verification keeps failing intermittently",
+      "body": "Most webhook events verify fine but occasionally the signature check fails even though the payload looks correct.",
+      "resolution": "Intermittent signature verification failures usually indicate a body-parsing issue. The customer's web framework was automatically parsing the request body as JSON before the signature check code ran. Since the signature is computed over the raw bytes of the request body, any modification (including reformatting by a JSON parser) changes the body and breaks the signature. We advised the customer to read the raw request body bytes before any parsing happens, compute the signature on those bytes, and then separately parse the body for processing. After this fix, all verifications passed.",
+      "category": "Integrations",
+      "tags": [
+        "webhook",
+        "signature-verification",
+        "body-parsing"
+      ]
+    }
+  ]
+}

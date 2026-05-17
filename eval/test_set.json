@@ -1,0 +1,182 @@
+[
+  {
+    "id": "eval-001",
+    "query": "How do I reset my password if I forgot it?",
+    "expected_source_ids": ["doc-001"],
+    "expected_keywords": ["reset", "email", "24 hours", "forgot"]
+  },
+  {
+    "id": "eval-002",
+    "query": "My account got locked after too many failed login attempts. What do I do?",
+    "expected_source_ids": ["doc-001"],
+    "expected_keywords": ["locked", "30 minutes", "support", "clear"]
+  },
+  {
+    "id": "eval-003",
+    "query": "How do I set up two-factor authentication?",
+    "expected_source_ids": ["doc-002"],
+    "expected_keywords": ["2FA", "authenticator", "QR code", "backup codes"]
+  },
+  {
+    "id": "eval-004",
+    "query": "I lost my phone and can't access my authenticator app. How do I get back into my account?",
+    "expected_source_ids": ["doc-002"],
+    "expected_keywords": ["backup codes", "admin", "disable"]
+  },
+  {
+    "id": "eval-005",
+    "query": "What is the correct format for including an API key in requests?",
+    "expected_source_ids": ["doc-003"],
+    "expected_keywords": ["Authorization", "Bearer", "header"]
+  },
+  {
+    "id": "eval-006",
+    "query": "How do I rotate an API key without any downtime for my integration?",
+    "expected_source_ids": ["doc-003"],
+    "expected_keywords": ["rotate", "revoke", "simultaneously", "active"]
+  },
+  {
+    "id": "eval-007",
+    "query": "What are the API rate limits for the Growth plan?",
+    "expected_source_ids": ["doc-004"],
+    "expected_keywords": ["300", "50,000", "Growth", "per minute"]
+  },
+  {
+    "id": "eval-008",
+    "query": "How should I handle 429 rate limit errors in my code?",
+    "expected_source_ids": ["doc-004"],
+    "expected_keywords": ["Retry-After", "backoff", "429", "jitter"]
+  },
+  {
+    "id": "eval-009",
+    "query": "What does a 422 error code mean from the API?",
+    "expected_source_ids": ["doc-005"],
+    "expected_keywords": ["unprocessable", "422", "details", "field"]
+  },
+  {
+    "id": "eval-010",
+    "query": "I'm getting 500 errors with no useful information. How do I debug this?",
+    "expected_source_ids": ["doc-005"],
+    "expected_keywords": ["request_id", "500", "support ticket"]
+  },
+  {
+    "id": "eval-011",
+    "query": "How does billing work? What is counted as a seat?",
+    "expected_source_ids": ["doc-006"],
+    "expected_keywords": ["seat", "logged in", "billing period", "active user"]
+  },
+  {
+    "id": "eval-012",
+    "query": "What happens to billing if I add users in the middle of a billing cycle?",
+    "expected_source_ids": ["doc-006"],
+    "expected_keywords": ["prorat", "mid-cycle", "remaining days"]
+  },
+  {
+    "id": "eval-013",
+    "query": "Where do I find and download my invoices?",
+    "expected_source_ids": ["doc-007"],
+    "expected_keywords": ["Billing", "Invoices", "PDF", "Settings"]
+  },
+  {
+    "id": "eval-014",
+    "query": "Our company changed its legal name. How do I update it on invoices?",
+    "expected_source_ids": ["doc-007"],
+    "expected_keywords": ["legal name", "billing details", "future invoices"]
+  },
+  {
+    "id": "eval-015",
+    "query": "Can I get a refund on my monthly subscription?",
+    "expected_source_ids": ["doc-008"],
+    "expected_keywords": ["7 days", "refund", "monthly", "non-refundable"]
+  },
+  {
+    "id": "eval-016",
+    "query": "What happens to my data when I cancel my subscription?",
+    "expected_source_ids": ["doc-008"],
+    "expected_keywords": ["read-only", "90 days", "deleted", "cancellation"]
+  },
+  {
+    "id": "eval-017",
+    "query": "How do I export my data to CSV?",
+    "expected_source_ids": ["doc-009"],
+    "expected_keywords": ["CSV", "export", "Settings", "Data"]
+  },
+  {
+    "id": "eval-018",
+    "query": "How do I schedule automatic data exports to an S3 bucket?",
+    "expected_source_ids": ["doc-009"],
+    "expected_keywords": ["S3", "schedule", "IAM", "s3:PutObject"]
+  },
+  {
+    "id": "eval-019",
+    "query": "What is the difference between the Admin, Member, and Viewer roles?",
+    "expected_source_ids": ["doc-010"],
+    "expected_keywords": ["Admin", "Member", "Viewer", "read-only"]
+  },
+  {
+    "id": "eval-020",
+    "query": "How do I transfer organization ownership to another user?",
+    "expected_source_ids": ["doc-010"],
+    "expected_keywords": ["Transfer Ownership", "Admin", "downgraded"]
+  },
+  {
+    "id": "eval-021",
+    "query": "What are the first steps I should take after creating a new account?",
+    "expected_source_ids": ["doc-011"],
+    "expected_keywords": ["verify", "email", "2FA", "notification"]
+  },
+  {
+    "id": "eval-022",
+    "query": "How do I invite team members to my organization?",
+    "expected_source_ids": ["doc-011"],
+    "expected_keywords": ["Invite Members", "email", "role", "7 days"]
+  },
+  {
+    "id": "eval-023",
+    "query": "How do I connect Slack to receive notifications?",
+    "expected_source_ids": ["doc-012"],
+    "expected_keywords": ["Slack", "OAuth", "channels", "notifications"]
+  },
+  {
+    "id": "eval-024",
+    "query": "What is the minimum sync frequency for the Salesforce integration?",
+    "expected_source_ids": ["doc-012"],
+    "expected_keywords": ["Salesforce", "15 minutes", "schedule", "sync"]
+  },
+  {
+    "id": "eval-025",
+    "query": "How do I set up a webhook endpoint to receive events?",
+    "expected_source_ids": ["doc-013"],
+    "expected_keywords": ["webhook", "HTTPS", "secret", "endpoint"]
+  },
+  {
+    "id": "eval-026",
+    "query": "How do I verify that a webhook event came from your service and not a third party?",
+    "expected_source_ids": ["doc-013"],
+    "expected_keywords": ["HMAC", "signature", "X-Signature-SHA256", "secret"]
+  },
+  {
+    "id": "eval-027",
+    "query": "How do I configure SSO with Okta?",
+    "expected_source_ids": ["doc-014"],
+    "expected_keywords": ["ACS URL", "Entity ID", "SAML", "Okta"]
+  },
+  {
+    "id": "eval-028",
+    "query": "SSO login is failing with a clock skew error. How do I fix it?",
+    "expected_source_ids": ["doc-014"],
+    "expected_keywords": ["clock skew", "5 minutes", "SAML", "time"]
+  },
+  {
+    "id": "eval-029",
+    "query": "My API queries are very slow. How do I diagnose the problem?",
+    "expected_source_ids": ["doc-015"],
+    "expected_keywords": ["profiling", "index", "query", "slow"]
+  },
+  {
+    "id": "eval-030",
+    "query": "I'm getting 504 gateway timeout errors on API requests. How do I fix this?",
+    "expected_source_ids": ["doc-015"],
+    "expected_keywords": ["504", "timeout", "async", "30 seconds"]
+  }
+]
