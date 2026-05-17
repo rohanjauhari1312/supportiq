@@ -1,23 +1,22 @@
 import os
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
+import voyageai
 from pinecone import Pinecone
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env", override=True)
 
-EMBED_MODEL = "all-MiniLM-L6-v2"
 INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "supportiq")
 
-_model: SentenceTransformer | None = None
+_voyage: voyageai.Client | None = None
 _index = None
 
 
-def _get_model() -> SentenceTransformer:
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(EMBED_MODEL)
-    return _model
+def _get_voyage() -> voyageai.Client:
+    global _voyage
+    if _voyage is None:
+        _voyage = voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
+    return _voyage
 
 
 def _get_index():
@@ -29,7 +28,8 @@ def _get_index():
 
 
 def retrieve(query: str, top_k: int = 5) -> list[dict]:
-    embedding = _get_model().encode(query).tolist()
+    result = _get_voyage().embed([query], model="voyage-3-lite", input_type="query")
+    embedding = result.embeddings[0]
     results = _get_index().query(vector=embedding, top_k=top_k, include_metadata=True)
     return [
         {
